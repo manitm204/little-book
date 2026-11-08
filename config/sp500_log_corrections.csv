@@ -1,0 +1,8 @@
+date,side,log_ticker,security_contains,new_ticker,reason
+2005-03-24,removed,S,Sears,S.SEARS,Sears Roebuck shared ticker S with Sprint in the log; Sprint stayed in the index until 2013
+2005-11-18,removed,T,AT&T Corp,T.ATTCORP,Old AT&T Corp was bought by SBC which took ticker T; both were members before this date
+2008-06-06,removed,TT,Trane,TT.TRANE,Trane Inc (ex American Standard) shared ticker TT with Ingersoll-Rand which is now Trane Technologies
+2014-04-30,added,UA,Class A,UAA,Under Armour Class A trades as UAA and Class C trades as UA
+2015-03-20,removed,AGN,Allergan,AGN.OLD,Old Allergan Inc was bought by Actavis which took ticker AGN; both were members before this date
+2022-06-17,removed,UA,Class A,UAA,Under Armour Class A trades as UAA and Class C trades as UA
+2026-03-23,added,SATS,EchoStar,ECHO,EchoStar moved from SATS to ECHO and SATS was reassigned to a Strive preferred stock

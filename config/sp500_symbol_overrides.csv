@@ -1,0 +1,105 @@
+ticker,action,fmp_symbol,valid_from,reason
+DPS,map,KDP,,Dr Pepper Snapple became Keurig Dr Pepper (same legal entity)
+RMG,map,CVC,,Log uses a wrong ticker for Cablevision; FMP carries it as CVC
+DWDP,map,DD,,DowDuPont became DuPont de Nemours (same legal entity)
+AGN,map,AGN,2015-06-15,Before this date FMP prices under AGN are old Allergan while the statements are Actavis
+AGN.OLD,block,,,FMP prices are old Allergan but the statements are Actavis so the two cannot be paired
+LSI,block,,,FMP LSI is Life Storage (ex Sovran) and not LSI Corp
+KMG,block,,,FMP prices are Kerr-McGee but the statements are KMG Chemicals so the two cannot be paired
+EP,block,,,FMP EP is Empire Petroleum and not El Paso
+SII,block,,,FMP SII is Sprott and not Smith International
+GENZ,block,,,FMP GENZ is a VanEck ETF and not Genzyme
+SUN,block,,,FMP SUN is Sunoco LP and not Sunoco Inc
+AA,map,HWM,,Old Alcoa Inc is today's Howmet while FMP AA statements belong to the 2016 Alcoa spinoff
+PAR,map,PTC,,Log mislabels Parametric Technology as PAR Technology; Parametric is today's PTC
+CVG,block,,,FMP CVG prices are unreliable with zero-volume days
+WEN,block,,,FMP WEN is Triarc (CIK 30697 with revenue near $1B) and not Wendy's International
+CCE,map,CCEP,,Coca-Cola Enterprises history lives under its successor CCEP
+WYND,map,TNL,,Wyndham Worldwide became Travel + Leisure (same legal entity)
+DD,map,DD,2017-09-01,Before the merger FMP DD pairs du Pont prices with Dow Chemical statements so that spell is unusable
+BBBY,block,,,FMP pairs Overstock prices (it took the ticker in 2025) with Bed Bath & Beyond statements
+FTI,map,FTI,2017-01-17,Before the Technip merger FMP's prices and share counts for FMC Technologies are unreliable
+CPWR,block,,,FMP CPWR is Ocean Thermal Energy with reverse-split prices near $900 and not Compuware
+ADM,same,,,Reviewed: same company under a different or missing name
+ADS,same,,,Reviewed: same company under a different or missing name
+AIG,same,,,Reviewed: same company under a different or missing name
+AIV,same,,,Reviewed: same company under a different or missing name
+AKS,same,,,Reviewed: same company under a different or missing name
+ANDV,same,,,Reviewed: same company under a different or missing name
+APA,same,,,Reviewed: same company under a different or missing name
+AT,same,,,Reviewed: same company under a different or missing name
+ATGE,same,,,Reviewed: same company under a different or missing name
+AVP,same,,,Reviewed: same company under a different or missing name
+BF-B,same,,,Reviewed: same company under a different or missing name
+BIO,same,,,Reviewed: same company under a different or missing name
+BMS,same,,,Reviewed: same company under a different or missing name
+BXP,same,,,Reviewed: same company under a different or missing name
+CELG,same,,,Reviewed: same company under a different or missing name
+CLF,same,,,Reviewed: same company under a different or missing name
+CMI,same,,,Reviewed: same company under a different or missing name
+CNX,same,,,Reviewed: same company under a different or missing name
+CRM,same,,,Reviewed: same company under a different or missing name
+CTB,same,,,Reviewed: same company under a different or missing name
+CTX,same,,,Reviewed: same company under a different or missing name
+CXO,same,,,Reviewed: same company under a different or missing name
+DE,same,,,Reviewed: same company under a different or missing name
+DISCK,same,,,Reviewed: same company under a different or missing name
+DTV,same,,,Reviewed: same company under a different or missing name
+EL,same,,,Reviewed: same company under a different or missing name
+FCX,same,,,Reviewed: same company under a different or missing name
+FLIR,same,,,Reviewed: same company under a different or missing name
+FMCC,same,,,Reviewed: same company under a different or missing name
+FNMA,same,,,Reviewed: same company under a different or missing name
+FOX,same,,,Reviewed: same company under a different or missing name
+FOXA,same,,,Reviewed: same company under a different or missing name
+GWW,same,,,Reviewed: same company under a different or missing name
+HCR,same,,,Reviewed: same company under a different or missing name
+HFC,same,,,Reviewed: same company under a different or missing name
+HOG,same,,,Reviewed: same company under a different or missing name
+HSY,same,,,Reviewed: same company under a different or missing name
+IBM,same,,,Reviewed: same company under a different or missing name
+JBHT,same,,,Reviewed: same company under a different or missing name
+JCP,same,,,Reviewed: same company under a different or missing name
+JPM,same,,,Reviewed: same company under a different or missing name
+KLAC,same,,,Reviewed: same company under a different or missing name
+LH,same,,,Reviewed: same company under a different or missing name
+LM,same,,,Reviewed: same company under a different or missing name
+LPX,same,,,Reviewed: same company under a different or missing name
+MMTD,same,,,Reviewed: same company under a different or missing name
+NOV,same,,,Reviewed: same company under a different or missing name
+ODP,same,,,Reviewed: same company under a different or missing name
+OI,same,,,Reviewed: same company under a different or missing name
+PH,same,,,Reviewed: same company under a different or missing name
+PMCS,same,,,Reviewed: same company under a different or missing name
+QEP,same,,,Reviewed: same company under a different or missing name
+RRD,same,,,Reviewed: same company under a different or missing name
+RTN,same,,,Reviewed: same company under a different or missing name
+SLB,same,,,Reviewed: same company under a different or missing name
+SNA,same,,,Reviewed: same company under a different or missing name
+SPLS,same,,,Reviewed: same company under a different or missing name
+SSP,same,,,Reviewed: same company under a different or missing name
+TECH,same,,,Reviewed: same company under a different or missing name
+TIF,same,,,Reviewed: same company under a different or missing name
+TMUS,same,,,Reviewed: same company under a different or missing name
+TSG,same,,,Reviewed: same company under a different or missing name
+TSS,same,,,Reviewed: same company under a different or missing name
+TTWO,same,,,Reviewed: same company under a different or missing name
+VAR,same,,,Reviewed: same company under a different or missing name
+WAB,same,,,Reviewed: same company under a different or missing name
+WCG,same,,,Reviewed: same company under a different or missing name
+WMT,same,,,Reviewed: same company under a different or missing name
+WPX,same,,,Reviewed: same company under a different or missing name
+XEC,same,,,Reviewed: same company under a different or missing name
+ZION,same,,,Reviewed: same company under a different or missing name
+AMZN,same,,,Reviewed: same company under a different or missing name
+ATI,same,,,Reviewed: same company under a different or missing name
+DHI,same,,,Reviewed: same company under a different or missing name
+ETFC,same,,,Reviewed: same company under a different or missing name
+FTR,same,,,Reviewed: same company under a different or missing name
+LLY,same,,,Reviewed: same company under a different or missing name
+M,same,,,Reviewed: same company under a different or missing name
+SJM,same,,,Reviewed: same company under a different or missing name
+SMCI,same,,,Reviewed: same company under a different or missing name
+VIAB,same,,,Reviewed: same company under a different or missing name
+GHC,low_volume_ok,,,High share price so low volume is genuine
+NVR,low_volume_ok,,,High share price so low volume is genuine
