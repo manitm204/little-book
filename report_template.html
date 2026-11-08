@@ -1,0 +1,651 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Magic Formula Score Check</title>
+<style>
+  :root {
+    color-scheme: light;
+    --surface-0: #f5f5f3;
+    --surface-1: #fcfcfb;
+    --border: #e4e3df;
+    --grid: #ecebe7;
+    --text-primary: #0b0b0b;
+    --text-secondary: #52514e;
+    --text-muted: #7a7974;
+    --series-1: #2a78d6;
+    --series-1-soft: rgba(42, 120, 214, 0.22);
+    --series-2: #eb6834;
+    --reference: #7a7974;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:where(:not([data-theme="light"])) {
+      color-scheme: dark;
+      --surface-0: #121211;
+      --surface-1: #1a1a19;
+      --border: #2e2e2b;
+      --grid: #262624;
+      --text-primary: #f0efec;
+      --text-secondary: #c3c2b7;
+      --text-muted: #8f8e86;
+      --series-1: #3987e5;
+      --series-1-soft: rgba(57, 135, 229, 0.30);
+      --series-2: #d95926;
+      --reference: #8f8e86;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --surface-0: #121211;
+    --surface-1: #1a1a19;
+    --border: #2e2e2b;
+    --grid: #262624;
+    --text-primary: #f0efec;
+    --text-secondary: #c3c2b7;
+    --text-muted: #8f8e86;
+    --series-1: #3987e5;
+    --series-1-soft: rgba(57, 135, 229, 0.30);
+    --series-2: #d95926;
+    --reference: #8f8e86;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--surface-0);
+    color: var(--text-primary);
+    font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  main { max-width: 980px; margin: 0 auto; padding: 32px 16px 64px; }
+  h1 { font-size: 26px; line-height: 1.25; margin: 0 0 8px; }
+  h2 { font-size: 18px; margin: 0 0 4px; }
+  p { margin: 0 0 12px; color: var(--text-secondary); }
+  .lede { font-size: 16px; max-width: 72ch; }
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(168px, 1fr)); gap: 12px; margin: 24px 0; }
+  .tile, .card { background: var(--surface-1); border: 1px solid var(--border); border-radius: 12px; }
+  .tile { padding: 16px; }
+  .tile .value { font-size: 28px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .tile .value.compact { font-size: 18px; padding: 7px 0 5px; }
+  .tile .label { font-size: 13px; color: var(--text-secondary); }
+  .card { padding: 20px; margin: 20px 0; }
+  .card .sub { font-size: 13px; color: var(--text-muted); margin-bottom: 12px; }
+  .chart { position: relative; width: 100%; }
+  .chart svg, .chart canvas { display: block; width: 100%; }
+  .axis-text { fill: var(--text-muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+  .axis-title { fill: var(--text-secondary); font-size: 12px; }
+  .value-label { fill: var(--text-secondary); font-size: 12px; font-variant-numeric: tabular-nums; }
+  .ref-label { fill: var(--text-muted); font-size: 12px; }
+  .tooltip {
+    position: absolute; pointer-events: none; z-index: 2; display: none;
+    background: var(--surface-1); color: var(--text-primary);
+    border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px;
+    font-size: 13px; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12); white-space: nowrap;
+  }
+  .tooltip strong { display: block; margin-bottom: 2px; }
+  .tooltip span { color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+  .legend { display: flex; flex-wrap: wrap; gap: 16px; font-size: 13px; color: var(--text-secondary); margin-top: 8px; }
+  .legend i { display: inline-block; width: 18px; height: 0; border-top: 2px solid; vertical-align: middle; margin-right: 6px; }
+  .legend i.whisker { width: 2px; height: 14px; border: 0; background: var(--text-secondary); margin: 0 10px 0 6px; }
+  .legend i.swatch { width: 12px; height: 12px; border: 0; border-radius: 3px; }
+  .verdict { font-size: 15px; color: var(--text-primary); background: var(--surface-0); border-radius: 8px; padding: 12px 14px; margin: 4px 0 16px; }
+  h3 { font-size: 15px; margin: 24px 0 4px; }
+  .legend i.dot { width: 8px; height: 8px; border: 0; border-radius: 50%; background: var(--series-1); }
+  details { margin-top: 12px; font-size: 13px; }
+  summary { cursor: pointer; color: var(--text-secondary); }
+  table { border-collapse: collapse; width: 100%; margin-top: 8px; font-variant-numeric: tabular-nums; }
+  th, td { text-align: right; padding: 6px 8px; border-bottom: 1px solid var(--border); }
+  th:first-child, td:first-child { text-align: left; }
+  th { color: var(--text-secondary); font-weight: 500; }
+  .table-wrap { overflow-x: auto; }
+  ul.notes { color: var(--text-secondary); padding-left: 20px; margin: 0; }
+  ul.notes li { margin-bottom: 6px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Does a higher Magic Formula score mean higher returns?</h1>
+  <p class="lede" id="lede"></p>
+
+  <div class="tiles" id="tiles"></div>
+
+  <section class="card">
+    <h2>Average return over the next year, by score group</h2>
+    <div class="sub" id="year-sub"></div>
+    <div class="chart" id="year-chart"></div>
+    <div class="legend"><span><i style="border-color:var(--reference);border-top-style:dashed"></i>Average of all scored stocks</span></div>
+    <details><summary>Show as a table</summary><div class="table-wrap" id="year-table"></div></details>
+  </section>
+
+  <section class="card">
+    <h2>Average return over the next quarter, by score group</h2>
+    <div class="sub" id="quarter-sub"></div>
+    <div class="chart" id="quarter-chart"></div>
+    <div class="legend"><span><i style="border-color:var(--reference);border-top-style:dashed"></i>Average of all scored stocks</span></div>
+    <details><summary>Show as a table</summary><div class="table-wrap" id="quarter-table"></div></details>
+  </section>
+
+  <section class="card">
+    <h2>How confident can we be that the top 10% beats the bottom 10%?</h2>
+    <div class="sub">The gap in next-year return between the best- and worst-scoring groups, with its 90% confidence interval. If the interval crosses zero, the data can't rule out no difference.</div>
+    <div class="verdict" id="verdict"></div>
+    <div class="chart" id="forest-chart"></div>
+    <div class="legend"><span><i class="dot" style="background:var(--text-primary)"></i>Average gap</span><span><i class="whisker"></i>90% confidence interval</span></div>
+    <h3>How confident would we have to settle for being?</h3>
+    <div class="sub" id="curve-sub"></div>
+    <div class="chart" id="curve-chart"></div>
+    <div class="legend">
+      <span><i class="swatch" style="background:var(--series-1-soft)"></i>Confidence interval at each level</span>
+      <span><i style="border-color:var(--text-primary)"></i>Average gap</span>
+      <span><i class="dot" style="background:var(--series-2)"></i>Where the interval stops including zero</span>
+    </div>
+    <h3>The gap for each start date, next-year returns</h3>
+    <div class="sub" id="spread-sub"></div>
+    <div class="chart" id="spread-chart"></div>
+    <div class="legend">
+      <span><i class="swatch" style="background:var(--series-1)"></i>Top 10% did better</span>
+      <span><i class="swatch" style="background:var(--series-2)"></i>Bottom 10% did better</span>
+      <span><i style="border-color:var(--text-primary);border-top-style:dashed"></i>Average gap</span>
+    </div>
+    <details><summary>Why the intervals are this wide</summary><p id="width-note" style="margin-top:8px"></p></details>
+  </section>
+
+  <section class="card">
+    <h2>Score vs. return over the next year, stock by stock</h2>
+    <div class="sub" id="scatter-sub"></div>
+    <div class="chart" id="scatter-chart"></div>
+    <div class="legend">
+      <span><i class="dot"></i>One stock at one quarter end</span>
+      <span><i style="border-color:var(--series-2)"></i>Line of best fit</span>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>How this was measured</h2>
+    <ul class="notes" id="notes"></ul>
+  </section>
+</main>
+
+<script>
+const DATA = /*DATA*/null;
+
+const pct = (v, digits = 1) => (v >= 0 ? "+" : "−") + Math.abs(v * 100).toFixed(digits) + "%";
+const css = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+const SVG_NS = "http://www.w3.org/2000/svg";
+
+function el(tag, attrs = {}, text) {
+  const node = document.createElementNS(SVG_NS, tag);
+  for (const [key, value] of Object.entries(attrs)) node.setAttribute(key, value);
+  if (text !== undefined) node.textContent = text;
+  return node;
+}
+
+function groupLabel(group) {
+  if (group === 1) return "Top 10%";
+  if (group === 10) return "Bottom 10%";
+  return `${(group - 1) * 10}–${group * 10}%`;
+}
+
+function niceTicks(min, max, count) {
+  const span = max - min;
+  const raw = span / count;
+  const magnitude = Math.pow(10, Math.floor(Math.log10(raw)));
+  const step = [1, 2, 2.5, 5, 10].map(m => m * magnitude).find(s => span / s <= count) || magnitude * 10;
+  const ticks = [];
+  const last = Math.ceil(max / step) * step;
+  for (let t = Math.floor(min / step) * step; t <= last + step * 1e-9; t += step) ticks.push(+t.toFixed(10));
+  return ticks;
+}
+
+function tooltip(container) {
+  let tip = container.querySelector(".tooltip");
+  if (!tip) {
+    tip = document.createElement("div");
+    tip.className = "tooltip";
+    container.appendChild(tip);
+  }
+  return {
+    show(html, x, y) {
+      tip.innerHTML = html;
+      tip.style.display = "block";
+      const box = container.getBoundingClientRect();
+      const left = Math.min(Math.max(x + 12, 0), box.width - tip.offsetWidth - 4);
+      tip.style.left = left + "px";
+      tip.style.top = Math.max(y - tip.offsetHeight - 12, 0) + "px";
+    },
+    hide() { tip.style.display = "none"; },
+  };
+}
+
+function drawBars(containerId, horizon) {
+  const container = document.getElementById(containerId);
+  const { groups, stats } = DATA.horizons[horizon];
+  const width = container.clientWidth;
+  const narrow = width < 560;
+  const height = 320;
+  const margin = { top: 24, right: narrow ? 12 : 92, bottom: 48, left: 48 };
+  const plotW = width - margin.left - margin.right;
+  const plotH = height - margin.top - margin.bottom;
+
+  const values = groups.map(g => g.mean_return).concat([0, stats.all_stock_mean]);
+  const ticks = niceTicks(Math.min(...values), Math.max(...values) * 1.08, 5);
+  const yMin = Math.min(0, ticks[0]);
+  const yMax = ticks[ticks.length - 1];
+  const y = v => margin.top + plotH * (1 - (v - yMin) / (yMax - yMin));
+  const band = plotW / groups.length;
+  const gap = 2;
+  const barW = Math.max(band - Math.max(band * 0.28, gap), 4);
+
+  const svg = el("svg", { viewBox: `0 0 ${width} ${height}`, height, role: "img",
+    "aria-label": `Bar chart of average ${horizon} return for each of ten score groups` });
+
+  for (const t of ticks) {
+    svg.appendChild(el("line", { x1: margin.left, x2: width - margin.right, y1: y(t), y2: y(t),
+      stroke: t === 0 ? css("--text-muted") : css("--grid"), "stroke-width": 1 }));
+    svg.appendChild(el("text", { x: margin.left - 8, y: y(t) + 4, "text-anchor": "end", class: "axis-text" },
+      (t * 100).toFixed(t * 100 % 1 === 0 ? 0 : 1) + "%"));
+  }
+
+  const tip = tooltip(container);
+  groups.forEach((g, i) => {
+    const x = margin.left + i * band + (band - barW) / 2;
+    const top = y(Math.max(g.mean_return, 0));
+    const bottom = y(Math.min(g.mean_return, 0));
+    const r = Math.min(4, barW / 2, bottom - top);
+    // Round only the data end, keep the baseline end square.
+    const up = g.mean_return >= 0;
+    const path = up
+      ? `M${x},${bottom} V${top + r} Q${x},${top} ${x + r},${top} H${x + barW - r} Q${x + barW},${top} ${x + barW},${top + r} V${bottom} Z`
+      : `M${x},${top} V${bottom - r} Q${x},${bottom} ${x + r},${bottom} H${x + barW - r} Q${x + barW},${bottom} ${x + barW},${bottom - r} V${top} Z`;
+    svg.appendChild(el("path", { d: path, fill: css("--series-1") }));
+
+    if (!narrow || i === 0 || i === groups.length - 1) {
+      svg.appendChild(el("text", { x: x + barW / 2, y: up ? top - 6 : bottom + 14, "text-anchor": "middle", class: "value-label" },
+        (g.mean_return * 100).toFixed(1) + "%"));
+    }
+    const label = narrow ? String(g.group) : groupLabel(g.group);
+    svg.appendChild(el("text", { x: x + barW / 2, y: height - margin.bottom + 18, "text-anchor": "middle", class: "axis-text" }, label));
+
+    const hit = el("rect", { x: margin.left + i * band, y: margin.top, width: band, height: plotH, fill: "transparent" });
+    hit.addEventListener("mousemove", event => {
+      const box = container.getBoundingClientRect();
+      tip.show(`<strong>${groupLabel(g.group)} by score</strong>
+        <span>Average return: ${pct(g.mean_return)}</span><br>
+        <span>Median stock: ${pct(g.median_stock_return)}</span><br>
+        <span>Beat the all-stock average in ${g.beat_average_pct.toFixed(0)}% of quarters</span><br>
+        <span>${g.observations.toLocaleString()} stock-quarters</span>`,
+        event.clientX - box.left, event.clientY - box.top);
+    });
+    hit.addEventListener("mouseleave", () => tip.hide());
+    svg.appendChild(hit);
+  });
+
+  const refY = y(stats.all_stock_mean);
+  svg.appendChild(el("line", { x1: margin.left, x2: width - margin.right, y1: refY, y2: refY,
+    stroke: css("--reference"), "stroke-width": 1.5, "stroke-dasharray": "5 4", "pointer-events": "none" }));
+  // Label the reference line past the last bar so it can't collide with bar labels.
+  if (!narrow) {
+    svg.appendChild(el("text", { x: width - margin.right + 6, y: refY - 2, class: "ref-label" }, "All stocks"));
+    svg.appendChild(el("text", { x: width - margin.right + 6, y: refY + 13, class: "ref-label" },
+      (stats.all_stock_mean * 100).toFixed(1) + "%"));
+  }
+  svg.appendChild(el("text", { x: margin.left + plotW / 2, y: height - 8, "text-anchor": "middle", class: "axis-title" },
+    narrow ? "Score group (1 = top 10%, 10 = bottom 10%)" : "Score group (best scores on the left)"));
+
+  container.querySelector("svg")?.remove();
+  container.insertBefore(svg, container.firstChild);
+}
+
+function drawTable(containerId, horizon) {
+  const rows = DATA.horizons[horizon].groups.map(g => `<tr><td>${groupLabel(g.group)}</td>
+    <td>${pct(g.mean_return)}</td><td>${pct(g.median_stock_return)}</td>
+    <td>${g.beat_average_pct.toFixed(0)}%</td><td>${g.observations.toLocaleString()}</td></tr>`).join("");
+  document.getElementById(containerId).innerHTML = `<table><thead><tr><th>Score group</th><th>Average return</th>
+    <th>Median stock</th><th>Quarters above all-stock average</th><th>Stock-quarters</th></tr></thead><tbody>${rows}</tbody></table>`;
+}
+
+function drawForest() {
+  const container = document.getElementById("forest-chart");
+  const rows = [["Next year", DATA.horizons.year.stats]];
+  const width = container.clientWidth;
+  const narrow = width < 560;
+  const rowH = 56;
+  const margin = { top: 8, right: 16, bottom: 36, left: narrow ? 96 : 120 };
+  const height = margin.top + rows.length * rowH + margin.bottom;
+  const plotW = width - margin.left - margin.right;
+  const values = rows.flatMap(([, st]) => [st.spread_ci_low, st.spread_ci_high, 0]);
+  const ticks = niceTicks(Math.min(...values) * 1.1, Math.max(...values) * 1.1, narrow ? 4 : 7);
+  const xMin = ticks[0], xMax = ticks[ticks.length - 1];
+  const x = v => margin.left + plotW * (v - xMin) / (xMax - xMin);
+  const svg = el("svg", { viewBox: `0 0 ${width} ${height}`, height, role: "img",
+    "aria-label": "Top 10% minus bottom 10% next-year return with its 90% confidence interval" });
+
+  for (const t of ticks) {
+    svg.appendChild(el("line", { x1: x(t), x2: x(t), y1: margin.top, y2: height - margin.bottom,
+      stroke: t === 0 ? css("--text-muted") : css("--grid"), "stroke-width": t === 0 ? 1.5 : 1 }));
+    svg.appendChild(el("text", { x: x(t), y: height - margin.bottom + 18, "text-anchor": "middle", class: "axis-text" },
+      (t > 0 ? "+" : "") + (t * 100).toFixed(0) + "%"));
+  }
+  svg.appendChild(el("text", { x: margin.left + plotW / 2, y: height - 4, "text-anchor": "middle", class: "axis-title" },
+    narrow ? "Top 10% minus bottom 10%" : "Top 10% return minus bottom 10% return"));
+
+  const tip = tooltip(container);
+  rows.forEach(([label, st], i) => {
+    const cy = margin.top + i * rowH + rowH / 2;
+    svg.appendChild(el("text", { x: margin.left - 12, y: cy + 4, "text-anchor": "end", class: "axis-title" }, label));
+    svg.appendChild(el("line", { x1: x(st.spread_ci_low), x2: x(st.spread_ci_high), y1: cy, y2: cy,
+      stroke: css("--text-secondary"), "stroke-width": 2 }));
+    for (const v of [st.spread_ci_low, st.spread_ci_high]) {
+      svg.appendChild(el("line", { x1: x(v), x2: x(v), y1: cy - 7, y2: cy + 7, stroke: css("--text-secondary"), "stroke-width": 2 }));
+    }
+    svg.appendChild(el("circle", { cx: x(st.top_minus_bottom), cy, r: 6, fill: css("--text-primary"),
+      stroke: css("--surface-1"), "stroke-width": 2 }));
+    svg.appendChild(el("text", { x: x(st.top_minus_bottom), y: cy - 12, "text-anchor": "middle", class: "value-label" },
+      pct(st.top_minus_bottom)));
+    const hit = el("rect", { x: margin.left, y: cy - rowH / 2, width: plotW, height: rowH, fill: "transparent" });
+    hit.addEventListener("mousemove", event => {
+      const box = container.getBoundingClientRect();
+      tip.show(`<strong>${label}</strong><span>Average gap: ${pct(st.top_minus_bottom)}</span><br>
+        <span>90% confidence interval: ${pct(st.spread_ci_low)} to ${pct(st.spread_ci_high)}</span><br>
+        <span>Bootstrap check: ${pct(st.spread_bootstrap_low)} to ${pct(st.spread_bootstrap_high)}</span><br>
+        <span>p-value: ${st.spread_p_value.toFixed(2)} · ${st.quarters} start dates</span>`,
+        event.clientX - box.left, event.clientY - box.top);
+    });
+    hit.addEventListener("mouseleave", () => tip.hide());
+    svg.appendChild(hit);
+  });
+  container.querySelector("svg")?.remove();
+  container.insertBefore(svg, container.firstChild);
+}
+
+function drawCurve() {
+  const container = document.getElementById("curve-chart");
+  const st = DATA.horizons.year.stats;
+  const curve = st.interval_curve;
+  const width = container.clientWidth;
+  const height = 280;
+  const margin = { top: 16, right: 16, bottom: 44, left: 52 };
+  const plotW = width - margin.left - margin.right;
+  const plotH = height - margin.top - margin.bottom;
+  const levels = curve.map(c => c[0]);
+  const ticks = niceTicks(Math.min(...curve.map(c => c[1]), 0), Math.max(...curve.map(c => c[2])), 6);
+  const yMin = ticks[0], yMax = ticks[ticks.length - 1];
+  const x = v => margin.left + plotW * (v - levels[0]) / (levels[levels.length - 1] - levels[0]);
+  const y = v => margin.top + plotH * (1 - (v - yMin) / (yMax - yMin));
+  const svg = el("svg", { viewBox: `0 0 ${width} ${height}`, height, role: "img",
+    "aria-label": "Confidence interval for the top-minus-bottom gap at confidence levels from 50% to 99%" });
+
+  for (const t of ticks) {
+    svg.appendChild(el("line", { x1: margin.left, x2: width - margin.right, y1: y(t), y2: y(t),
+      stroke: t === 0 ? css("--text-muted") : css("--grid"), "stroke-width": t === 0 ? 1.5 : 1 }));
+    svg.appendChild(el("text", { x: margin.left - 8, y: y(t) + 4, "text-anchor": "end", class: "axis-text" },
+      (t > 0 ? "+" : t < 0 ? "−" : "") + Math.abs(t * 100).toFixed(0) + "%"));
+  }
+  for (const level of [0.5, 0.6, 0.7, 0.8, 0.9, 0.99]) {
+    svg.appendChild(el("text", { x: x(level), y: height - margin.bottom + 18, "text-anchor": "middle", class: "axis-text" },
+      Math.round(level * 100) + "%"));
+  }
+  svg.appendChild(el("text", { x: margin.left + plotW / 2, y: height - 6, "text-anchor": "middle", class: "axis-title" },
+    "Confidence level asked for"));
+
+  const band = curve.map(c => `${x(c[0])},${y(c[2])}`).concat(curve.slice().reverse().map(c => `${x(c[0])},${y(c[1])}`));
+  svg.appendChild(el("polygon", { points: band.join(" "), fill: css("--series-1-soft") }));
+  for (const side of [1, 2]) {
+    svg.appendChild(el("polyline", { points: curve.map(c => `${x(c[0])},${y(c[side])}`).join(" "),
+      fill: "none", stroke: css("--series-1"), "stroke-width": 2 }));
+  }
+  svg.appendChild(el("line", { x1: x(levels[0]), x2: x(levels[levels.length - 1]), y1: y(st.top_minus_bottom), y2: y(st.top_minus_bottom),
+    stroke: css("--text-primary"), "stroke-width": 1.5 }));
+
+  const marks = [[st.confidence_level, `${Math.round(st.confidence_level * 100)}%: ${pct(st.spread_ci_low)} to ${pct(st.spread_ci_high)}`]];
+  const be = st.break_even_confidence;
+  if (be >= levels[0] && be <= levels[levels.length - 1]) {
+    svg.appendChild(el("line", { x1: x(be), x2: x(be), y1: y(0), y2: margin.top + plotH, stroke: css("--series-2"),
+      "stroke-width": 1.5, "stroke-dasharray": "4 3" }));
+    svg.appendChild(el("circle", { cx: x(be), cy: y(0), r: 6, fill: css("--series-2"), stroke: css("--surface-1"), "stroke-width": 2 }));
+    svg.appendChild(el("text", { x: x(be) - 10, y: y(0) + 20, "text-anchor": "end", class: "value-label", "font-weight": 600 },
+      `${(be * 100).toFixed(0)}% confidence`));
+  }
+  const cx = x(st.confidence_level);
+  svg.appendChild(el("line", { x1: cx, x2: cx, y1: y(st.spread_ci_low), y2: y(st.spread_ci_high), stroke: css("--text-secondary"),
+    "stroke-width": 1.5, "stroke-dasharray": "2 3" }));
+
+  const tip = tooltip(container);
+  const hit = el("rect", { x: margin.left, y: margin.top, width: plotW, height: plotH, fill: "transparent" });
+  hit.addEventListener("mousemove", event => {
+    const box = container.getBoundingClientRect();
+    const mx = event.clientX - box.left;
+    const level = Math.min(Math.max(levels[0] + (mx - margin.left) / plotW * (levels[levels.length - 1] - levels[0]), levels[0]), levels[levels.length - 1]);
+    const c = curve.reduce((best, row) => Math.abs(row[0] - level) < Math.abs(best[0] - level) ? row : best);
+    tip.show(`<strong>${Math.round(c[0] * 100)}% confidence</strong><span>Interval: ${pct(c[1])} to ${pct(c[2])}</span><br>
+      <span>${c[1] > 0 ? "Excludes zero" : "Includes zero"}</span>`, mx, event.clientY - box.top);
+  });
+  hit.addEventListener("mouseleave", () => tip.hide());
+  svg.appendChild(hit);
+  container.querySelector("svg")?.remove();
+  container.insertBefore(svg, container.firstChild);
+}
+
+function drawSpreadOverTime() {
+  const container = document.getElementById("spread-chart");
+  const st = DATA.horizons.year.stats;
+  const series = st.spread_by_date;
+  const width = container.clientWidth;
+  const height = 260;
+  const margin = { top: 16, right: 12, bottom: 32, left: 48 };
+  const plotW = width - margin.left - margin.right;
+  const plotH = height - margin.top - margin.bottom;
+  const ticks = niceTicks(Math.min(...series.map(d => d[1])), Math.max(...series.map(d => d[1])), 6);
+  const yMin = ticks[0], yMax = ticks[ticks.length - 1];
+  const y = v => margin.top + plotH * (1 - (v - yMin) / (yMax - yMin));
+  const band = plotW / series.length;
+  const barW = Math.max(band - 2, 1);
+  const svg = el("svg", { viewBox: `0 0 ${width} ${height}`, height, role: "img",
+    "aria-label": "Top 10% minus bottom 10% next-year return for each start date" });
+
+  for (const t of ticks) {
+    svg.appendChild(el("line", { x1: margin.left, x2: width - margin.right, y1: y(t), y2: y(t),
+      stroke: t === 0 ? css("--text-muted") : css("--grid"), "stroke-width": 1 }));
+    svg.appendChild(el("text", { x: margin.left - 8, y: y(t) + 4, "text-anchor": "end", class: "axis-text" },
+      (t > 0 ? "+" : "") + (t * 100).toFixed(0) + "%"));
+  }
+  const step = width < 560 ? 5 : 2;
+  const firstOfYear = new Set();
+  series.forEach(([date], i) => { if (i === 0 || series[i - 1][0].slice(0, 4) !== date.slice(0, 4)) firstOfYear.add(i); });
+  const tip = tooltip(container);
+  series.forEach(([date, value], i) => {
+    const x0 = margin.left + i * band + (band - barW) / 2;
+    const top = y(Math.max(value, 0)), bottom = y(Math.min(value, 0));
+    svg.appendChild(el("rect", { x: x0, y: top, width: barW, height: Math.max(bottom - top, 1),
+      fill: value >= 0 ? css("--series-1") : css("--series-2"), rx: Math.min(2, barW / 2) }));
+    if (firstOfYear.has(i) && Number(date.slice(0, 4)) % step === 0) {
+      svg.appendChild(el("text", { x: x0 + barW / 2, y: height - margin.bottom + 18, "text-anchor": "middle", class: "axis-text" }, date.slice(0, 4)));
+    }
+    const hit = el("rect", { x: margin.left + i * band, y: margin.top, width: band, height: plotH, fill: "transparent" });
+    hit.addEventListener("mousemove", event => {
+      const box = container.getBoundingClientRect();
+      tip.show(`<strong>Start ${date}</strong><span>Top 10% minus bottom 10%: ${pct(value)}</span>`,
+        event.clientX - box.left, event.clientY - box.top);
+    });
+    hit.addEventListener("mouseleave", () => tip.hide());
+    svg.appendChild(hit);
+  });
+  const meanY = y(st.top_minus_bottom);
+  svg.appendChild(el("line", { x1: margin.left, x2: width - margin.right, y1: meanY, y2: meanY,
+    stroke: css("--text-primary"), "stroke-width": 1.5, "stroke-dasharray": "5 4", "pointer-events": "none" }));
+  container.querySelector("svg")?.remove();
+  container.insertBefore(svg, container.firstChild);
+}
+
+function drawScatter() {
+  const container = document.getElementById("scatter-chart");
+  const { points, slope, intercept } = DATA.scatter;
+  const width = container.clientWidth;
+  const height = Math.min(440, Math.max(320, width * 0.55));
+  const narrow = width < 560;
+  const margin = { top: 16, right: 16, bottom: 44, left: 68 };
+  const plotW = width - margin.left - margin.right;
+  const plotH = height - margin.top - margin.bottom;
+  const ys = points.map(p => p[1]);
+  const yTicks = niceTicks(Math.min(...ys), Math.max(...ys) * 1.15, 6);
+  const yMin = yTicks[0], yMax = yTicks[yTicks.length - 1];
+  const x = v => margin.left + plotW * v / 100;
+  const y = v => margin.top + plotH * (1 - (v - yMin) / (yMax - yMin));
+
+  const ratio = window.devicePixelRatio || 1;
+  const canvas = document.createElement("canvas");
+  canvas.width = width * ratio;
+  canvas.height = height * ratio;
+  canvas.style.height = height + "px";
+  canvas.setAttribute("role", "img");
+  canvas.setAttribute("aria-label", "Scatter plot of score against 1-year return with a nearly flat line of best fit");
+  const ctx = canvas.getContext("2d");
+  ctx.scale(ratio, ratio);
+
+  ctx.font = "12px system-ui, sans-serif";
+  ctx.lineWidth = 1;
+  for (const t of yTicks) {
+    ctx.strokeStyle = t === 0 ? css("--text-muted") : css("--grid");
+    ctx.beginPath(); ctx.moveTo(margin.left, y(t)); ctx.lineTo(width - margin.right, y(t)); ctx.stroke();
+    ctx.fillStyle = css("--text-muted"); ctx.textAlign = "right";
+    ctx.fillText((t * 100).toFixed(0) + "%", margin.left - 8, y(t) + 4);
+  }
+  ctx.textAlign = "center";
+  for (const t of [0, 20, 40, 60, 80, 100]) {
+    ctx.fillStyle = css("--text-muted");
+    ctx.fillText(String(t), x(t), height - margin.bottom + 18);
+  }
+  ctx.fillStyle = css("--text-secondary");
+  ctx.fillText("Score (100 = best in the index that quarter)", margin.left + plotW / 2, height - 6);
+  ctx.save();
+  ctx.translate(14, margin.top + plotH / 2); ctx.rotate(-Math.PI / 2);
+  ctx.fillText("Return over the next year", 0, 0);
+  ctx.restore();
+
+  ctx.fillStyle = css("--series-1-soft");
+  for (const [px, py] of points) {
+    ctx.beginPath(); ctx.arc(x(px), y(py), 2.2, 0, Math.PI * 2); ctx.fill();
+  }
+
+  ctx.strokeStyle = css("--surface-1"); ctx.lineWidth = 6;
+  ctx.beginPath(); ctx.moveTo(x(0), y(intercept)); ctx.lineTo(x(100), y(intercept + slope * 100)); ctx.stroke();
+  ctx.strokeStyle = css("--series-2"); ctx.lineWidth = 2.5;
+  ctx.beginPath(); ctx.moveTo(x(0), y(intercept)); ctx.lineTo(x(100), y(intercept + slope * 100)); ctx.stroke();
+  const fitLabel = narrow
+    ? `Fit: ${pct(intercept)} → ${pct(intercept + slope * 100)}`
+    : `Fit: ${pct(intercept)} at score 0 → ${pct(intercept + slope * 100)} at score 100`;
+  const labelY = y(yMax) + 14;
+  ctx.textAlign = "right"; ctx.font = "600 12px system-ui, sans-serif";
+  ctx.lineWidth = 4; ctx.strokeStyle = css("--surface-1");
+  ctx.strokeText(fitLabel, width - margin.right - 4, labelY);
+  ctx.fillStyle = css("--text-primary");
+  ctx.fillText(fitLabel, width - margin.right - 4, labelY);
+
+  container.querySelector("canvas")?.remove();
+  container.insertBefore(canvas, container.firstChild);
+
+  const tip = tooltip(container);
+  canvas.onmousemove = event => {
+    const box = canvas.getBoundingClientRect();
+    const mx = event.clientX - box.left, my = event.clientY - box.top;
+    let best = null, bestDistance = 64;
+    for (const p of points) {
+      const d = (x(p[0]) - mx) ** 2 + (y(p[1]) - my) ** 2;
+      if (d < bestDistance) { bestDistance = d; best = p; }
+    }
+    if (best) tip.show(`<strong>${best[2]} · ${best[3]}</strong><span>Score ${best[0].toFixed(0)}</span><br>
+      <span>Next-year return ${pct(best[1])}</span>`, mx, my);
+    else tip.hide();
+  };
+  canvas.onmouseleave = () => tip.hide();
+}
+
+function fillText() {
+  const year = DATA.horizons.year.stats, quarter = DATA.horizons.quarter.stats;
+  const yearGroups = DATA.horizons.year.groups, quarterGroups = DATA.horizons.quarter.groups;
+  const top = yearGroups[0].mean_return, bottom = yearGroups[yearGroups.length - 1].mean_return;
+  document.getElementById("lede").textContent =
+    `Every quarter from ${year.first_date.slice(0, 4)} to ${quarter.last_date.slice(0, 4)}, S&P 500 stocks were ranked by ` +
+    `Magic Formula score and split into ten equal groups. Over the next year, the best-scoring 10% returned ` +
+    `${pct(top)} on average against ${pct(bottom)} for the worst-scoring 10%. ` +
+    `That gap is not statistically reliable: its 90% confidence interval runs from ${pct(year.spread_ci_low)} ` +
+    `to ${pct(year.spread_ci_high)}, which includes zero. Over a single quarter the groups are close to even.`;
+
+  const tiles = [
+    [pct(top - bottom), "Top 10% minus bottom 10%, average yearly return"],
+    [`${pct(year.spread_ci_low)} to ${pct(year.spread_ci_high)}`, "90% confidence interval for that gap. It includes zero, so the gap could be luck", "compact"],
+    [`${(year.break_even_confidence * 100).toFixed(0)}%`, "The highest confidence level at which the interval leaves out zero"],
+    [year.top_beats_bottom_pct.toFixed(0) + "%", `of ${year.quarters} start dates where the top 10% beat the bottom 10% over the next year`],
+    [year.rank_correlation.toFixed(3), "Average rank correlation of score with next-year return (0 means no link, 1 means perfect)"],
+  ];
+  document.getElementById("tiles").innerHTML = tiles.map(([v, l, size = ""]) =>
+    `<div class="tile"><div class="value ${size}">${v}</div><div class="label">${l}</div></div>`).join("");
+
+  document.getElementById("year-sub").textContent =
+    `${year.quarters} start dates, ${year.first_date} to ${year.last_date}. Each quarter counts equally. Hover a bar for details.`;
+  document.getElementById("quarter-sub").textContent =
+    `${quarter.quarters} start dates, ${quarter.first_date} to ${quarter.last_date}. Each quarter counts equally. Hover a bar for details.`;
+  const reliable = year.spread_ci_low > 0;
+  document.getElementById("verdict").innerHTML = reliable
+    ? `<strong>Yes, at 90% confidence.</strong> Over the next year the top 10% beat the bottom 10% by ${pct(year.top_minus_bottom)}, and the whole interval is above zero.`
+    : `<strong>No, not at 90% confidence.</strong> Over the next year the top 10% beat the bottom 10% by ${pct(year.top_minus_bottom)} on average, ` +
+      `but the 90% interval runs from ${pct(year.spread_ci_low)} to ${pct(year.spread_ci_high)}. The interval only leaves out zero ` +
+      `if we settle for ${(year.break_even_confidence * 100).toFixed(0)}% confidence (p = ${year.spread_p_value.toFixed(2)}).`;
+  document.getElementById("curve-sub").textContent =
+    `Asking for more confidence widens the interval. Below ${(year.break_even_confidence * 100).toFixed(0)}% it sits entirely above zero, ` +
+    `so ${(year.break_even_confidence * 100).toFixed(0)}% is the most confidence this data supports for "the top 10% beats the bottom 10%". ` +
+    `Hover to read the interval at any level.`;
+  const early = year.spread_by_date.filter(([d]) => d < "2015");
+  const late = year.spread_by_date.filter(([d]) => d >= "2015");
+  const avg = list => list.reduce((a, [, v]) => a + v, 0) / list.length;
+  document.getElementById("spread-sub").textContent =
+    `Each bar is one start date. The top 10% did better in ${year.top_beats_bottom_pct.toFixed(0)}% of them, but the swings are large. ` +
+    `The gap averaged ${pct(avg(early))} for start dates before 2015 and ${pct(avg(late))} since.`;
+  document.getElementById("width-note").textContent =
+    `There are ${year.quarters} start dates, not thousands of independent results. Stocks in the same quarter rise and fall together, ` +
+    `so each quarter's group average counts as one observation. A 1-year return also starts every quarter, so neighboring ` +
+    `results share nine of their twelve months. The intervals correct for that overlap (Newey-West, ${year.newey_west_lags} quarters). ` +
+    `Ignoring it would shrink the interval for the yearly gap to about ±${(year.spread_naive_ci_halfwidth * 100).toFixed(1)} points, ` +
+    `which would overstate the confidence. A bootstrap that resamples runs of quarters gives ${pct(year.spread_bootstrap_low)} ` +
+    `to ${pct(year.spread_bootstrap_high)} at 90%, close to the main interval. ` +
+    `The ${(year.break_even_confidence * 100).toFixed(0)}% figure is for an interval with equal room on both sides. ` +
+    `Asking only whether the gap is above zero, a one-sided test, puts the confidence at ` +
+    `${(year.one_sided_confidence * 100).toFixed(0)}%.`;
+  const s = DATA.scatter;
+  document.getElementById("scatter-sub").textContent =
+    `${points(s.points.length)} of ${s.count.toLocaleString()} stock-quarters shown so the cloud stays readable. ` +
+    `The line is fitted to all of them. The rows of dots along the top and bottom edges are the capped extreme returns. ` +
+    `Correlation ${s.correlation.toFixed(3)}, ` +
+    `or ${pct(s.slope * 10, 2)} of yearly return per 10 points of score.`;
+
+  document.getElementById("notes").innerHTML = [
+    "Universe: S&P 500 members on each date, as they were then, excluding financials, utilities, REITs and health insurers, which the book also leaves out.",
+    "Score: Magic Formula rank (return on capital plus earnings yield) shown as a percentile within each quarter, so 100 is the best stock that quarter.",
+    "Returns include dividends. A stock bought out or delisted during the holding period keeps its return up to its last trade.",
+    "The most extreme 1% of returns at each end are capped, so a single bad price in the data can't swing a group.",
+    "Holding periods overlap: a 1-year return starts every quarter, so neighboring results share most of their months.",
+    "The confidence interval is 90%, built from each quarter's top-minus-bottom gap with Newey-West standard errors to account for the overlap.",
+    "FMP is missing many companies that later failed, especially before 2010. Results may look better than reality, and the bias may differ by score group.",
+  ].map(n => `<li>${n}</li>`).join("");
+}
+
+function points(n) { return n.toLocaleString(); }
+
+function render() {
+  drawBars("year-chart", "year");
+  drawBars("quarter-chart", "quarter");
+  drawForest();
+  drawCurve();
+  drawSpreadOverTime();
+  drawScatter();
+}
+
+fillText();
+drawTable("year-table", "year");
+drawTable("quarter-table", "quarter");
+render();
+let resizeTimer;
+window.addEventListener("resize", () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(render, 120); });
+window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", render);
+</script>
+</body>
+</html>
