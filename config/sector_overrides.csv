@@ -1,0 +1,24 @@
+symbol,sector,reason
+AGN,Healthcare,No FMP profile
+AKS,Basic Materials,No FMP profile
+AT,Communication Services,Ticker now belongs to an ETF; Alltel was a telecom
+AVP,Consumer Defensive,No FMP profile
+BMS,Consumer Cyclical,No FMP profile
+CELG,Healthcare,No FMP profile
+CTB,Consumer Cyclical,No FMP profile
+CXO,Energy,No FMP profile
+DTV,Communication Services,No FMP profile
+ETFC,Financial Services,No FMP profile
+FLIR,Technology,No FMP profile
+FTR,Communication Services,No FMP profile
+JCP,Consumer Cyclical,No FMP profile
+LM,Financial Services,No FMP profile
+QEP,Energy,No FMP profile
+RTN,Industrials,No FMP profile
+SPLS,Consumer Cyclical,Ticker now belongs to an ETF; Staples was a retailer
+TIF,Consumer Cyclical,No FMP profile
+TSS,Technology,No FMP profile
+VAR,Healthcare,No FMP profile
+VIAB,Communication Services,No FMP profile
+WPX,Energy,No FMP profile
+XEC,Energy,No FMP profile
