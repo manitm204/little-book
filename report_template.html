@@ -109,6 +109,12 @@
   .stats-table td.best { font-weight: 600; color: var(--text-primary); }
   .stats-table td .range { display: block; font-size: 11px; color: var(--text-muted); }
   .stats-table td:first-child { color: var(--text-secondary); }
+  .heat td.cell { text-align: center; font-weight: 500; min-width: 64px; }
+  .heat td.ref, .heat tr.ref td { border-top: 2px solid var(--border); }
+  .flag { display: inline-block; font-size: 11px; color: var(--series-2); border: 1px solid currentColor; border-radius: 4px; padding: 0 4px; margin-left: 6px; vertical-align: 1px; }
+  .multiples { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 12px 20px; margin-top: 8px; }
+  .multiples h4 { font-size: 13px; margin: 0; font-weight: 600; }
+  .multiples .meta { font-size: 12px; color: var(--text-muted); margin-bottom: 2px; font-variant-numeric: tabular-nums; }
   .toggle button[aria-pressed="true"] { background: var(--surface-0); color: var(--text-primary); font-weight: 600; }
 </style>
 </head>
@@ -257,6 +263,109 @@
   </section>
 
   <section class="card">
+    <h2>Does the formula work better in some sectors?</h2>
+    <div class="sub" id="sector-gap-sub"></div>
+    <div class="verdict" id="sector-verdict"></div>
+    <div class="chart" id="sector-forest"></div>
+    <div class="legend">
+      <span><i class="dot" style="background:var(--series-1)"></i>Interval above zero</span>
+      <span><i class="dot" style="background:var(--reference)"></i>Interval includes zero</span>
+      <span><i class="whisker"></i>90% confidence interval</span>
+      <span><i style="border-top:6px solid var(--grid);border-radius:3px"></i>Widened for testing several sectors</span>
+      <span><span class="flag">small</span> fewer than 25 stocks a quarter</span>
+    </div>
+
+    <h3>Return of each group compared with its sector's average</h3>
+    <div class="sub" id="sector-heat-sub"></div>
+    <div class="table-wrap" id="sector-heat"></div>
+
+    <h3>Before vs. since 2016</h3>
+    <div class="sub" id="sector-halves-sub"></div>
+    <div class="chart" id="sector-halves"></div>
+    <div class="legend">
+      <span><i class="dot" style="background:var(--reference)"></i>2005–2015</span>
+      <span><i class="dot" style="background:var(--series-1)"></i>2016 onward</span>
+    </div>
+
+    <h3>Growth of $1 in each sector's top and bottom quarter</h3>
+    <div class="sub" id="sector-curves-sub"></div>
+    <div class="legend" style="margin:0 0 4px">
+      <span><i style="border-color:var(--series-1)"></i>Top 25% by score</span>
+      <span><i style="border-color:var(--series-2)"></i>Bottom 25%</span>
+      <span><i style="border-color:var(--reference);border-top-style:dashed"></i>Whole sector, equal weight</span>
+    </div>
+    <div class="multiples" id="sector-multiples"></div>
+  </section>
+
+  <section class="card">
+    <h2>A closer look at <span id="focus-title"></span></h2>
+    <div class="sub" id="focus-sub"></div>
+    <div class="toggle" id="focus-toggle"></div>
+    <div class="verdict" id="focus-verdict"></div>
+    <div class="tiles inner" id="focus-tiles"></div>
+
+    <h3>How many stocks the sector has each quarter</h3>
+    <div class="sub" id="focus-count-sub"></div>
+    <div class="chart" id="focus-counts"></div>
+
+    <h3>How each group performed</h3>
+    <div class="sub" id="focus-table-sub"></div>
+    <div class="table-wrap" id="focus-table"></div>
+    <div class="chart" id="focus-curves" style="margin-top:12px"></div>
+    <div class="legend" id="focus-curves-legend"></div>
+
+    <h3>The gap for every start quarter</h3>
+    <div class="sub" id="focus-gap-sub"></div>
+    <div class="chart" id="focus-gaps"></div>
+    <div class="legend">
+      <span><i class="swatch" style="background:var(--series-1)"></i>Top 25% did better</span>
+      <span><i class="swatch" style="background:var(--series-2)"></i>Bottom 25% did better</span>
+      <span><i style="border-color:var(--text-primary)"></i>Average of the last 12 quarters</span>
+      <span><i style="border-color:var(--text-primary);border-top-style:dashed"></i>Average gap</span>
+      <span><i style="border-color:var(--text-muted);border-top-style:dotted;border-top-width:3px"></i>Trend line</span>
+    </div>
+
+    <h3>The gap by period</h3>
+    <div class="sub" id="focus-period-sub"></div>
+    <div class="chart" id="focus-periods"></div>
+    <div class="legend">
+      <span><i class="swatch" style="background:var(--series-1)"></i>Average gap in the period</span>
+      <span><i class="whisker"></i>90% confidence interval</span>
+    </div>
+    <details><summary>Show as a table</summary><div class="table-wrap" id="focus-period-table"></div></details>
+
+    <h3 id="vs-title"></h3>
+    <div class="sub" id="vs-sub"></div>
+    <div class="verdict" id="vs-verdict"></div>
+    <div class="tiles inner" id="vs-tiles"></div>
+    <div class="chart" id="vs-chart"></div>
+    <div class="legend" id="vs-legend"></div>
+    <h3>Side by side</h3>
+    <div class="sub" id="vs-table-sub"></div>
+    <div class="table-wrap" id="vs-table"></div>
+    <h3>Is it pulling ahead or falling behind?</h3>
+    <div class="sub" id="vs-relative-sub"></div>
+    <div class="chart" id="vs-relative"></div>
+    <div class="legend" id="vs-relative-legend"></div>
+    <h3>Each calendar year</h3>
+    <div class="sub" id="vs-years-sub"></div>
+    <div class="toggle" id="vs-years-toggle"></div>
+    <div class="chart" id="vs-years"></div>
+    <div class="legend">
+      <span><i class="swatch" style="background:var(--series-1)"></i>Top 25% ahead</span>
+      <span><i class="swatch" style="background:var(--series-2)"></i>Benchmark ahead</span>
+      <span><i class="whisker"></i>Range covering 90% of paths</span>
+    </div>
+
+    <h3>Long-short versions: taking the market out</h3>
+    <div class="sub" id="ls-sub"></div>
+    <div class="verdict" id="ls-verdict"></div>
+    <div class="chart" id="ls-chart"></div>
+    <div class="legend" id="ls-legend"></div>
+    <div class="table-wrap" id="ls-table" style="margin-top:12px"></div>
+  </section>
+
+  <section class="card">
     <h2>Score vs. return over the next year, stock by stock</h2>
     <div class="sub" id="scatter-sub"></div>
     <div class="chart" id="scatter-chart"></div>
@@ -275,7 +384,10 @@
 <script>
 const DATA = /*DATA*/null;
 
-const pct = (v, digits = 1) => (v >= 0 ? "+" : "−") + Math.abs(v * 100).toFixed(digits) + "%";
+const pct = (v, digits = 1) => {
+  const text = Math.abs(v * 100).toFixed(digits);
+  return (Number(text) === 0 ? "" : v >= 0 ? "+" : "−") + text + "%";
+};
 const css = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 const SVG_NS = "http://www.w3.org/2000/svg";
 
@@ -535,11 +647,14 @@ function drawCurve() {
 function drawGapBars(containerId, series, mean, describe) {
   const container = document.getElementById(containerId);
   const width = container.clientWidth;
-  const height = 260;
+  const height = describe.height || 260;
   const margin = { top: 16, right: 12, bottom: 32, left: 48 };
   const plotW = width - margin.left - margin.right;
   const plotH = height - margin.top - margin.bottom;
-  const ticks = niceTicks(Math.min(0, ...series.map(d => d[1])), Math.max(...series.map(d => d[1])), 6);
+  const overlay = (describe.lines || []).flatMap(l => l.values.filter(v => v !== null));
+  const ticks = niceTicks(Math.min(0, ...series.map(d => d[1]), ...overlay), Math.max(...series.map(d => d[1]), ...overlay), describe.tickCount || 6);
+  const format = describe.format ||
+    (t => (t > 0 ? "+" : t < 0 ? "−" : "") + Math.abs(t * 100).toFixed(Math.abs(t * 100) % 1 ? 1 : 0) + "%");
   const yMin = ticks[0], yMax = ticks[ticks.length - 1];
   const y = v => margin.top + plotH * (1 - (v - yMin) / (yMax - yMin));
   const band = plotW / series.length;
@@ -549,8 +664,7 @@ function drawGapBars(containerId, series, mean, describe) {
   for (const t of ticks) {
     svg.appendChild(el("line", { x1: margin.left, x2: width - margin.right, y1: y(t), y2: y(t),
       stroke: t === 0 ? css("--text-muted") : css("--grid"), "stroke-width": 1 }));
-    svg.appendChild(el("text", { x: margin.left - 8, y: y(t) + 4, "text-anchor": "end", class: "axis-text" },
-      (t > 0 ? "+" : t < 0 ? "−" : "") + Math.abs(t * 100).toFixed(Math.abs(t * 100) % 1 ? 1 : 0) + "%"));
+    svg.appendChild(el("text", { x: margin.left - 8, y: y(t) + 4, "text-anchor": "end", class: "axis-text" }, format(t)));
   }
   const step = width < 560 ? 5 : 2;
   const firstOfYear = new Set();
@@ -560,7 +674,7 @@ function drawGapBars(containerId, series, mean, describe) {
     const x0 = margin.left + i * band + (band - barW) / 2;
     const top = y(Math.max(value, 0)), bottom = y(Math.min(value, 0));
     svg.appendChild(el("rect", { x: x0, y: top, width: barW, height: Math.max(bottom - top, 1),
-      fill: value >= 0 ? css("--series-1") : css("--series-2"), rx: Math.min(2, barW / 2) }));
+      fill: describe.fill ? describe.fill(value) : value >= 0 ? css("--series-1") : css("--series-2"), rx: Math.min(2, barW / 2) }));
     if (firstOfYear.has(i) && Number(date.slice(0, 4)) % step === 0) {
       svg.appendChild(el("text", { x: x0 + barW / 2, y: height - margin.bottom + 18, "text-anchor": "middle", class: "axis-text" }, date.slice(0, 4)));
     }
@@ -572,6 +686,13 @@ function drawGapBars(containerId, series, mean, describe) {
     hit.addEventListener("mouseleave", () => tip.hide());
     svg.appendChild(hit);
   });
+  for (const l of describe.lines || []) {
+    const pts = l.values.map((v, i) => v === null ? null : `${margin.left + i * band + band / 2},${y(v)}`).filter(Boolean);
+    svg.appendChild(el("polyline", { points: pts.join(" "), fill: "none", stroke: css("--surface-1"), "stroke-width": (l.width || 2) + 3,
+      "pointer-events": "none", "stroke-linejoin": "round" }));
+    svg.appendChild(el("polyline", { points: pts.join(" "), fill: "none", stroke: l.color, "stroke-width": l.width || 2,
+      "stroke-dasharray": l.dash || "none", "pointer-events": "none", "stroke-linejoin": "round" }));
+  }
   const meanY = y(mean);
   svg.appendChild(el("line", { x1: margin.left, x2: width - margin.right, y1: meanY, y2: meanY,
     stroke: css("--text-primary"), "stroke-width": 1.5, "stroke-dasharray": "5 4", "pointer-events": "none" }));
@@ -599,8 +720,10 @@ function drawGrowth(containerId, series, bands, options = {}) {
   const margin = { top: 16, right: narrow ? 12 : 64, bottom: 32, left: 52 };
   const plotW = width - margin.left - margin.right;
   const plotH = height - margin.top - margin.bottom;
-  const all = series.flatMap(s => s.values).concat(bands.flatMap(b => b.low.concat(b.high)));
-  const lo = Math.log2(Math.min(...all) * 0.95), hi = Math.log2(Math.max(...all) * 1.05);
+  // A null value leaves a gap, for a series that starts later than the others.
+  const all = series.flatMap(s => s.values).concat(bands.flatMap(b => b.low.concat(b.high))).filter(v => v !== null);
+  const [low, high] = options.domain || [Math.min(...all), Math.max(...all)];
+  const lo = Math.log2(low * 0.95), hi = Math.log2(high * 1.05);
   const x = i => margin.left + plotW * i / (dates.length - 1);
   const y = v => margin.top + plotH * (1 - (Math.log2(v) - lo) / (hi - lo));
   const svg = el("svg", { viewBox: `0 0 ${width} ${height}`, height, role: "img", "aria-label": options.aria || "" });
@@ -620,7 +743,7 @@ function drawGrowth(containerId, series, bands, options = {}) {
     }
   });
 
-  const line = values => values.map((v, i) => `${x(i)},${y(v)}`).join(" ");
+  const line = values => values.map((v, i) => v === null ? null : `${x(i)},${y(v)}`).filter(Boolean).join(" ");
   for (const b of bands) {
     const pts = b.high.map((v, i) => `${x(i)},${y(v)}`).concat(b.low.map((v, i) => `${x(i)},${y(v)}`).reverse());
     svg.appendChild(el("polygon", { points: pts.join(" "), fill: b.color }));
@@ -634,7 +757,7 @@ function drawGrowth(containerId, series, bands, options = {}) {
     const labelled = series.filter(s => s.label).map(s => ({ s, y: y(s.values[s.values.length - 1]) })).sort((a, b) => a.y - b.y);
     labelled.forEach((item, i) => { if (i > 0) item.y = Math.max(item.y, labelled[i - 1].y + 15); });
     for (const { s, y: ly } of labelled) {
-      svg.appendChild(el("text", { x: width - margin.right + 6, y: ly + 4, class: "value-label", fill: s.color, "font-weight": 600 },
+      svg.appendChild(el("text", { x: width - margin.right + 6, y: ly + 4, class: "value-label", style: `fill: ${s.color}`, "font-weight": 600 },
         money(s.values[s.values.length - 1])));
     }
   }
@@ -787,9 +910,8 @@ function drawRelative() {
   });
 }
 
-function drawYears() {
-  const container = document.getElementById("years-chart");
-  const rows = DATA.equity.vs_spy.years;
+function drawYears(containerId = "years-chart", rows = DATA.equity.vs_spy.years, options = {}) {
+  const container = document.getElementById(containerId);
   const width = container.clientWidth;
   const narrow = width < 560;
   const height = 280;
@@ -802,7 +924,7 @@ function drawYears() {
   const band = plotW / rows.length;
   const barW = Math.max(band * 0.62, 3);
   const svg = el("svg", { viewBox: `0 0 ${width} ${height}`, height, role: "img",
-    "aria-label": "Calendar-year return of the top 10% minus the S&P 500, with the range across simulated paths" });
+    "aria-label": options.aria || "Calendar-year return of the top 10% minus the S&P 500, with the range across simulated paths" });
   for (const t of ticks) {
     svg.appendChild(el("line", { x1: margin.left, x2: width - margin.right, y1: y(t), y2: y(t),
       stroke: t === 0 ? css("--text-muted") : css("--grid"), "stroke-width": 1 }));
@@ -828,9 +950,10 @@ function drawYears() {
     const hit = el("rect", { x: cx - band / 2, y: margin.top, width: band, height: plotH, fill: "transparent" });
     hit.addEventListener("mousemove", event => {
       const box = container.getBoundingClientRect();
-      tip.show(`<strong>${r.label}</strong><span>Top 10%: ${pct(r.top)} · S&amp;P 500: ${pct(r.spy)}</span><br>
+      tip.show(options.tip ? options.tip(r) : `<strong>${r.label}</strong><span>Top 10%: ${pct(r.top)} · S&amp;P 500: ${pct(r.spy)}</span><br>
         <span>Gap: ${pct(v)} (90% of paths ${pct(r.gap[1])} to ${pct(r.gap[2])})</span><br>
-        <span>Equal-weight S&amp;P: ${pct(r.rsp)}</span>`, event.clientX - box.left, event.clientY - box.top);
+        <span>Equal-weight S&amp;P: ${pct(r.rsp)}</span>`,
+        event.clientX - box.left, event.clientY - box.top);
     });
     hit.addEventListener("mouseleave", () => tip.hide());
     svg.appendChild(hit);
@@ -971,6 +1094,7 @@ function fillSpy() {
     ["Alpha (yearly)", "alpha", f.pct, 1, true], ["Tracking error", "tracking_error", f.size, 0, true],
     ["Information ratio", "information_ratio", f.num, 1, true], ["Up-market capture", "up_capture", f.share, 1, true],
     ["Down-market capture", "down_capture", f.share, -1, true], ["Months beating the S&P 500", "months_beating", f.share, 1, true],
+    ["R² with the S&P 500", "r_squared", f.num, 0, true],
   ];
   const body = metricsRows.map(([label, key, fmt, better, relative]) => {
     const values = columns.map(([name, st]) => relative && name === "S&P 500" ? null : st[key]);
@@ -1039,6 +1163,531 @@ function fillSpy() {
     <th>All scored, before</th><th>Top 10%, since ${splitYear}</th><th>All scored, since</th></tr></thead><tbody>${sectors.map(r =>
     `<tr><td>${r.sector}</td><td>${(r.early_top * 100).toFixed(0)}%</td><td>${(r.early_all * 100).toFixed(0)}%</td>
     <td>${(r.late_top * 100).toFixed(0)}%</td><td>${(r.late_all * 100).toFixed(0)}%</td></tr>`).join("")}</tbody></table>`;
+}
+
+const sectorDot = row => row.ci[0] > 0 ? css("--series-1") : row.ci[1] < 0 ? css("--series-2") : css("--reference");
+
+function drawSectorForest() {
+  const container = document.getElementById("sector-forest");
+  const sec = DATA.sectors, rows = sec.rows;
+  const width = container.clientWidth;
+  const narrow = width < 560;
+  const rowH = 34;
+  const gapAfter = rows.findIndex(r => r.reference);
+  const margin = { top: 8, right: narrow ? 12 : 168, bottom: 36, left: narrow ? 120 : 176 };
+  const height = margin.top + rows.length * rowH + 14 + margin.bottom;
+  const plotW = width - margin.left - margin.right;
+  const values = rows.flatMap(r => r.ci_adjusted).concat(0);
+  const ticks = niceTicks(Math.min(...values), Math.max(...values), narrow ? 4 : 7);
+  const xMin = ticks[0], xMax = ticks[ticks.length - 1];
+  const x = v => margin.left + plotW * (v - xMin) / (xMax - xMin);
+  const rowY = i => margin.top + i * rowH + rowH / 2 + (i >= gapAfter ? 14 : 0);
+  const svg = el("svg", { viewBox: `0 0 ${width} ${height}`, height, role: "img",
+    "aria-label": "Top quarter minus bottom quarter next-year return within each sector, with confidence intervals" });
+  for (const t of ticks) {
+    svg.appendChild(el("line", { x1: x(t), x2: x(t), y1: margin.top, y2: height - margin.bottom,
+      stroke: t === 0 ? css("--text-muted") : css("--grid"), "stroke-width": t === 0 ? 1.5 : 1 }));
+    svg.appendChild(el("text", { x: x(t), y: height - margin.bottom + 18, "text-anchor": "middle", class: "axis-text" },
+      (t > 0 ? "+" : t < 0 ? "−" : "") + Math.abs(t * 100).toFixed(0) + "%"));
+  }
+  svg.appendChild(el("text", { x: margin.left + plotW / 2, y: height - 4, "text-anchor": "middle", class: "axis-title" },
+    "Top 25% minus bottom 25%, average next-year return"));
+  svg.appendChild(el("line", { x1: 8, x2: width - 8, y1: rowY(gapAfter) - rowH / 2 - 7, y2: rowY(gapAfter) - rowH / 2 - 7, stroke: css("--border") }));
+  const tip = tooltip(container);
+  rows.forEach((r, i) => {
+    const cy = rowY(i);
+    const label = el("text", { x: margin.left - 12, y: cy + 4, "text-anchor": "end", class: "axis-title",
+      "font-weight": r.reference ? 600 : 400 }, narrow ? r.sector.replace("Communication Services", "Comm. Services").replace("Consumer ", "Cons. ") : r.sector);
+    svg.appendChild(label);
+    svg.appendChild(el("line", { x1: x(r.ci_adjusted[0]), x2: x(r.ci_adjusted[1]), y1: cy, y2: cy, stroke: css("--grid"), "stroke-width": 6, "stroke-linecap": "round" }));
+    svg.appendChild(el("line", { x1: x(r.ci[0]), x2: x(r.ci[1]), y1: cy, y2: cy, stroke: css("--text-secondary"), "stroke-width": 2 }));
+    for (const v of r.ci) svg.appendChild(el("line", { x1: x(v), x2: x(v), y1: cy - 6, y2: cy + 6, stroke: css("--text-secondary"), "stroke-width": 2 }));
+    svg.appendChild(el("circle", { cx: x(r.gap), cy, r: 6, fill: sectorDot(r), stroke: css("--surface-1"), "stroke-width": 2 }));
+    if (!narrow) {
+      svg.appendChild(el("text", { x: width - margin.right + 10, y: cy + 4, class: "value-label",
+        style: r.small ? `fill: ${css("--series-2")}` : "" },
+        `${pct(r.gap)} · ${Math.round(r.stocks)} stocks${r.small ? " · small" : ""}`));
+    }
+    const hit = el("rect", { x: 0, y: cy - rowH / 2, width, height: rowH, fill: "transparent" });
+    hit.addEventListener("mousemove", event => {
+      const box = container.getBoundingClientRect();
+      tip.show(`<strong>${r.sector}</strong><span>Top 25% minus bottom 25%: ${pct(r.gap)} a year</span><br>
+        <span>90% interval: ${pct(r.ci[0])} to ${pct(r.ci[1])}</span><br>
+        <span>Widened for ${sec.sector_count} sectors: ${pct(r.ci_adjusted[0])} to ${pct(r.ci_adjusted[1])}</span><br>
+        <span>Top beat bottom in ${r.top_wins_pct.toFixed(0)}% of ${r.quarters} quarters · ~${Math.round(r.stocks)} stocks a quarter</span>`,
+        event.clientX - box.left, event.clientY - box.top);
+    });
+    hit.addEventListener("mouseleave", () => tip.hide());
+    svg.appendChild(hit);
+  });
+  container.querySelector("svg")?.remove();
+  container.insertBefore(svg, container.firstChild);
+}
+
+function drawSectorHalves() {
+  const container = document.getElementById("sector-halves");
+  const rows = DATA.sectors.rows;
+  const width = container.clientWidth;
+  const narrow = width < 560;
+  const rowH = 30;
+  const gapAfter = rows.findIndex(r => r.reference);
+  const margin = { top: 8, right: 16, bottom: 36, left: narrow ? 120 : 176 };
+  const height = margin.top + rows.length * rowH + 14 + margin.bottom;
+  const plotW = width - margin.left - margin.right;
+  const values = rows.flatMap(r => [r.halves.early.gap, r.halves.late.gap]).concat(0);
+  const ticks = niceTicks(Math.min(...values), Math.max(...values), narrow ? 4 : 7);
+  const xMin = ticks[0], xMax = ticks[ticks.length - 1];
+  const x = v => margin.left + plotW * (v - xMin) / (xMax - xMin);
+  const rowY = i => margin.top + i * rowH + rowH / 2 + (i >= gapAfter ? 14 : 0);
+  const svg = el("svg", { viewBox: `0 0 ${width} ${height}`, height, role: "img",
+    "aria-label": "Top minus bottom quarter gap within each sector, before 2016 and since" });
+  for (const t of ticks) {
+    svg.appendChild(el("line", { x1: x(t), x2: x(t), y1: margin.top, y2: height - margin.bottom,
+      stroke: t === 0 ? css("--text-muted") : css("--grid"), "stroke-width": t === 0 ? 1.5 : 1 }));
+    svg.appendChild(el("text", { x: x(t), y: height - margin.bottom + 18, "text-anchor": "middle", class: "axis-text" },
+      (t > 0 ? "+" : t < 0 ? "−" : "") + Math.abs(t * 100).toFixed(0) + "%"));
+  }
+  svg.appendChild(el("text", { x: margin.left + plotW / 2, y: height - 4, "text-anchor": "middle", class: "axis-title" },
+    "Top 25% minus bottom 25%, average next-year return"));
+  svg.appendChild(el("line", { x1: 8, x2: width - 8, y1: rowY(gapAfter) - rowH / 2 - 7, y2: rowY(gapAfter) - rowH / 2 - 7, stroke: css("--border") }));
+  const tip = tooltip(container);
+  rows.forEach((r, i) => {
+    const cy = rowY(i), e = r.halves.early, l = r.halves.late;
+    svg.appendChild(el("text", { x: margin.left - 12, y: cy + 4, "text-anchor": "end", class: "axis-title", "font-weight": r.reference ? 600 : 400 },
+      narrow ? r.sector.replace("Communication Services", "Comm. Services").replace("Consumer ", "Cons. ") : r.sector));
+    svg.appendChild(el("line", { x1: x(e.gap), x2: x(l.gap), y1: cy, y2: cy, stroke: css("--text-muted"), "stroke-width": 2 }));
+    svg.appendChild(el("circle", { cx: x(e.gap), cy, r: 5.5, fill: css("--reference"), stroke: css("--surface-1"), "stroke-width": 2 }));
+    svg.appendChild(el("circle", { cx: x(l.gap), cy, r: 5.5, fill: css("--series-1"), stroke: css("--surface-1"), "stroke-width": 2 }));
+    const hit = el("rect", { x: 0, y: cy - rowH / 2, width, height: rowH, fill: "transparent" });
+    hit.addEventListener("mousemove", event => {
+      const box = container.getBoundingClientRect();
+      tip.show(`<strong>${r.sector}</strong><span>2005–2015: ${pct(e.gap)} (90% interval ${pct(e.ci[0])} to ${pct(e.ci[1])})</span><br>
+        <span>2016 onward: ${pct(l.gap)} (90% interval ${pct(l.ci[0])} to ${pct(l.ci[1])})</span>`, event.clientX - box.left, event.clientY - box.top);
+    });
+    hit.addEventListener("mouseleave", () => tip.hide());
+    svg.appendChild(hit);
+  });
+  container.querySelector("svg")?.remove();
+  container.insertBefore(svg, container.firstChild);
+}
+
+function drawSectorMultiples() {
+  const sec = DATA.sectors;
+  const holder = document.getElementById("sector-multiples");
+  const order = sec.rows.filter(r => !r.reference).map(r => r.sector);
+  if (!holder.children.length) {
+    holder.innerHTML = order.map((name, i) => {
+      const c = sec.curves[name], row = sec.rows.find(r => r.sector === name);
+      return `<div><h4>${name}${row.small ? '<span class="flag">small</span>' : ""}</h4>
+        <div class="meta">Top ${pct(c.top.cagr)} · bottom ${pct(c.bottom.cagr)} · sector ${pct(c.all.cagr)} a year</div>
+        <div class="chart" id="sector-curve-${i}"></div></div>`;
+    }).join("");
+  }
+  // All panels share one scale so sectors can be compared by eye.
+  const all = order.flatMap(name => ["top", "bottom", "all"].flatMap(k => sec.curves[name][k].curve));
+  const range = [Math.min(...all), Math.max(...all)];
+  order.forEach((name, i) => {
+    const c = sec.curves[name];
+    drawGrowth(`sector-curve-${i}`, [
+      { values: c.all.curve, color: css("--reference"), width: 1.25, dash: "4 3" },
+      { values: c.bottom.curve, color: css("--series-2"), width: 1.75, label: true },
+      { values: c.top.curve, color: css("--series-1"), width: 1.75, label: true },
+    ], [], {
+      height: 170, domain: range, ticks: [0.5, 1, 2, 4, 8, 16],
+      aria: `Growth of one dollar in the top and bottom quarter of ${name} by score`,
+      tip: j => `<span>Top 25%: ${money(c.top.curve[j])}</span><br><span>Bottom 25%: ${money(c.bottom.curve[j])}</span><br>
+        <span>Whole sector: ${money(c.all.curve[j])}</span>`,
+    });
+  });
+}
+
+function fillSectors() {
+  const sec = DATA.sectors, rows = sec.rows;
+  const sectorsOnly = rows.filter(r => !r.reference);
+  const index = rows.find(r => r.sector === "Whole index"), pooled = rows.find(r => r.sector === "All sectors");
+  const clear = sectorsOnly.filter(r => r.ci[0] > 0), clearAdjusted = sectorsOnly.filter(r => r.ci_adjusted[0] > 0);
+  const names = list => list.map(r => r.sector).join(", ") || "none";
+  const adjustedPct = (sec.adjusted_level * 100).toFixed(1);
+  document.getElementById("sector-gap-sub").textContent =
+    `Every quarter, each sector's stocks are split into four equal groups by score. The dot is how much more the sector's top 25% ` +
+    `returned over the next year than its bottom 25%, averaged over ${rows[0].quarters} quarters. The dark line is the 90% confidence interval. ` +
+    `Testing ${sec.sector_count} sectors at once makes one fluke likely, so the light bar widens each interval to ${adjustedPct}% to allow for that. ` +
+    `Hover a row for details.`;
+  document.getElementById("sector-verdict").innerHTML =
+    (clearAdjusted.length
+      ? `<strong>${names(clearAdjusted)} ${clearAdjusted.length > 1 ? "stand" : "stands"} out.</strong> `
+      : `<strong>No sector stands out once the number of sectors tested is allowed for.</strong> `) +
+    (clear.length === clearAdjusted.length
+      ? `It is the only sector${clear.length > 1 ? "s" : ""} where the gap is above zero at 90% confidence, and ${clear.length > 1 ? "they stay" : "it stays"} above zero with the widened interval. `
+      : `At 90% confidence the gap is above zero in ${names(clear)}` +
+        (clearAdjusted.length ? `, and ${names(clearAdjusted)} ${clearAdjusted.length > 1 ? "stay" : "stays"} above zero with the widened interval. ` : ". ")) +
+    `Within the other sectors the score barely separates winners from losers. Taken across all sectors, the top quarter of each sector beat the bottom ` +
+    `quarter by only ${pct(pooled.gap)}, while ranking the whole index together gives ${pct(index.gap)}. So most of the formula's ` +
+    `index-wide edge comes from which sectors it leans toward, not from picking better stocks within a sector.`;
+
+  const shade = v => {
+    const strength = Math.min(Math.abs(v) / 0.05, 1);
+    const color = v >= 0 ? "42, 120, 214" : "235, 104, 52";
+    return `background: rgba(${color}, ${(0.08 + 0.5 * strength).toFixed(2)})`;
+  };
+  const labels = ["Top 25%", "25–50%", "50–75%", "Bottom 25%"];
+  document.getElementById("sector-heat-sub").textContent =
+    `Each cell is that group's average next-year return minus its sector's average. A sector where the formula works fades from blue on the left to orange on the right. ` +
+    `Rank correlation uses every stock, not just the ends (0 means no link). Rows are in the same order as the chart above.`;
+  document.getElementById("sector-heat").innerHTML = `<table class="heat"><thead><tr><th>Sector</th>${labels.map(l => `<th style="text-align:center">${l}</th>`).join("")}
+    <th>Gap</th><th>Rank correlation</th><th>Top beat bottom</th><th>Sector average</th><th>Stocks</th></tr></thead><tbody>${rows.map((r, i) => `
+    <tr class="${r.reference && rows[i - 1] && !rows[i - 1].reference ? "ref" : ""}"><td>${r.reference ? `<strong>${r.sector}</strong>` : r.sector}${r.small ? '<span class="flag">small</span>' : ""}</td>
+    ${r.relative.map(v => `<td class="cell" style="${shade(v)}">${pct(v)}</td>`).join("")}
+    <td>${pct(r.gap)}</td><td>${r.rank_correlation.toFixed(3)}</td><td>${r.top_wins_pct.toFixed(0)}%</td>
+    <td>${pct(r.sector_mean)}</td><td>${Math.round(r.stocks)}</td></tr>`).join("")}</tbody></table>`;
+
+  const faded = sectorsOnly.filter(r => r.halves.late.gap < r.halves.early.gap).length;
+  document.getElementById("sector-halves-sub").textContent =
+    `The same gap for quarters starting ${DATA.equity.vs_spy.halves.early.start.slice(0, 4)}–2015 and ${sec.split.slice(0, 4)} onward. ` +
+    `The gap shrank in ${faded} of ${sectorsOnly.length} sectors. Each half has only about 40 quarters, so these intervals are wide. Hover for them.`;
+  document.getElementById("sector-curves-sub").textContent =
+    `Four sleeves rebalanced once a year in different quarters, as in the backtest above, holding every stock in the group (no random picks). ` +
+    `All panels use the same scale. Small sectors have only a handful of stocks per group, so their lines are noisy.`;
+}
+
+let focusIndex = 0;
+const groupNames = ["Top 25%", "25–50%", "50–75%", "Bottom 25%"];
+const groupColors = () => [css("--series-1"), css("--series-1-soft").replace(/[\d.]+\)$/, "0.75)"), css("--series-2-soft").replace(/[\d.]+\)$/, "0.75)"), css("--series-2")];
+
+function drawWhiskerBars(containerId, rows, options) {
+  // rows: [{label, value, low, high, tip}]
+  const container = document.getElementById(containerId);
+  const width = container.clientWidth;
+  const height = options.height || 260;
+  const margin = { top: 20, right: 12, bottom: 36, left: 48 };
+  const plotW = width - margin.left - margin.right;
+  const plotH = height - margin.top - margin.bottom;
+  const ticks = niceTicks(Math.min(0, ...rows.map(r => r.low)), Math.max(0, ...rows.map(r => r.high)), 6);
+  const yMin = ticks[0], yMax = ticks[ticks.length - 1];
+  const y = v => margin.top + plotH * (1 - (v - yMin) / (yMax - yMin));
+  const band = plotW / rows.length;
+  const barW = Math.min(band * 0.5, 72);
+  const svg = el("svg", { viewBox: `0 0 ${width} ${height}`, height, role: "img", "aria-label": options.aria });
+  for (const t of ticks) {
+    svg.appendChild(el("line", { x1: margin.left, x2: width - margin.right, y1: y(t), y2: y(t),
+      stroke: t === 0 ? css("--text-muted") : css("--grid"), "stroke-width": 1 }));
+    svg.appendChild(el("text", { x: margin.left - 8, y: y(t) + 4, "text-anchor": "end", class: "axis-text" },
+      (t > 0 ? "+" : t < 0 ? "−" : "") + Math.abs(t * 100).toFixed(Math.abs(t * 100) % 1 ? 1 : 0) + "%"));
+  }
+  const tip = tooltip(container);
+  rows.forEach((r, i) => {
+    const cx = margin.left + i * band + band / 2;
+    const top = y(Math.max(r.value, 0)), bottom = y(Math.min(r.value, 0));
+    svg.appendChild(el("rect", { x: cx - barW / 2, y: top, width: barW, height: Math.max(bottom - top, 1),
+      fill: r.value >= 0 ? css("--series-1") : css("--series-2"), rx: 3 }));
+    svg.appendChild(el("line", { x1: cx, x2: cx, y1: y(r.low), y2: y(r.high), stroke: css("--text-secondary"), "stroke-width": 1.5 }));
+    for (const v of [r.low, r.high]) svg.appendChild(el("line", { x1: cx - 5, x2: cx + 5, y1: y(v), y2: y(v), stroke: css("--text-secondary"), "stroke-width": 1.5 }));
+    svg.appendChild(el("text", { x: cx + barW / 2 + 4, y: y(r.value) + (r.value >= 0 ? 4 : 4), class: "value-label" }, pct(r.value)));
+    svg.appendChild(el("text", { x: cx, y: height - margin.bottom + 18, "text-anchor": "middle", class: "axis-text" }, r.label));
+    const hit = el("rect", { x: cx - band / 2, y: margin.top, width: band, height: plotH, fill: "transparent" });
+    hit.addEventListener("mousemove", event => {
+      const box = container.getBoundingClientRect();
+      tip.show(r.tip, event.clientX - box.left, event.clientY - box.top);
+    });
+    hit.addEventListener("mouseleave", () => tip.hide());
+    svg.appendChild(hit);
+  });
+  container.querySelector("svg")?.remove();
+  container.insertBefore(svg, container.firstChild);
+}
+
+function drawFocus() {
+  const f = DATA.sectors.focus[focusIndex];
+  const curves = DATA.sectors.curves[f.sector];
+  const colors = groupColors();
+  const counts = f.counts;
+  const avgCount = counts.reduce((a, c) => a + c[1], 0) / counts.length;
+  drawGapBars("focus-counts", counts, avgCount, {
+    height: 170, tickCount: 4, format: t => String(t), fill: () => css("--series-1-soft").replace(/[\d.]+\)$/, "0.6)"),
+    aria: `Number of scored ${f.sector} stocks each quarter`,
+    tip: (date, n) => `<strong>${date}</strong><span>${n} scored stocks, about ${Math.round(n / 4)} per group</span>`,
+  });
+  drawGrowth("focus-curves", [
+    { values: curves.all.curve, color: css("--reference"), width: 1.25, dash: "4 3" },
+    ...[4, 3, 2, 1].map(g => ({ values: curves[String(g)].curve, color: colors[g - 1], width: g === 1 || g === 4 ? 2.25 : 1.75, label: true })),
+  ], [], {
+    height: 280,
+    aria: `Growth of one dollar in each of the four score groups within ${f.sector}`,
+    tip: i => [1, 2, 3, 4].map(g => `<span>${groupNames[g - 1]}: ${money(curves[String(g)].curve[i])}</span>`).join("<br>") +
+      `<br><span>Whole sector: ${money(curves.all.curve[i])}</span>`,
+  });
+  const rows = f.by_date;
+  drawGapBars("focus-gaps", rows.map(r => [r[0], r[5]]), rows.reduce((a, r) => a + r[5], 0) / rows.length, {
+    lines: [
+      { values: rows.map((r, i) => f.trend.start + (f.trend.end - f.trend.start) * i / (rows.length - 1)), color: css("--text-muted"), dash: "1 4", width: 2.5 },
+      { values: rows.map(r => r[6]), color: css("--text-primary"), width: 2 },
+    ],
+    aria: `Top 25% minus bottom 25% next-year return in ${f.sector} for each start quarter`,
+    tip: (date, value) => {
+      const r = rows.find(x => x[0] === date);
+      return `<strong>Start ${date}</strong><span>Top 25% minus bottom 25%: ${pct(value)}</span><br>` +
+        [1, 2, 3, 4].map(g => `<span>${groupNames[g - 1]}: ${pct(r[g])}</span>`).join("<br>") +
+        (r[6] !== null ? `<br><span>12-quarter average: ${pct(r[6])}</span>` : "");
+    },
+  });
+  drawWhiskerBars("focus-periods", f.periods.map(p => ({
+    label: p.label, value: p.gap, low: p.ci[0], high: p.ci[1],
+    tip: `<strong>Start dates ${p.label}</strong><span>Gap: ${pct(p.gap)} (90% interval ${pct(p.ci[0])} to ${pct(p.ci[1])})</span><br>
+      <span>Top 25%: ${pct(p.top)} · bottom 25%: ${pct(p.bottom)}</span><br><span>Top did better in ${p.top_wins_pct.toFixed(0)}% of ${p.quarters} quarters</span>`,
+  })), { aria: `Top minus bottom quarter gap in ${f.sector} for each period of start dates` });
+}
+
+function fillFocus() {
+  const all = DATA.sectors.focus;
+  const f = all[focusIndex];
+  const row = DATA.sectors.rows.find(r => r.sector === f.sector);
+  const colors = groupColors();
+  document.getElementById("focus-title").textContent = f.sector;
+  document.getElementById("focus-sub").textContent =
+    `${all.map(x => x.sector).join(" and ")} were the two sectors with a positive gap between their top and bottom quarter. ` +
+    `This breaks the result down by start date, to see whether the edge is steady or came from a few good stretches. Switch sectors here:`;
+  document.getElementById("focus-toggle").innerHTML = all.map((x, i) =>
+    `<button type="button" data-i="${i}" aria-pressed="${i === focusIndex}">${x.sector}</button>`).join("");
+  document.querySelectorAll("#focus-toggle button").forEach(b => b.addEventListener("click", () => {
+    focusIndex = Number(b.dataset.i); fillFocus(); fillVersus(); fillLongShort(); drawFocus(); drawVersus(); drawLongShort();
+  }));
+
+  const positive = f.periods.filter(p => p.gap > 0).length;
+  const clearPeriods = f.periods.filter(p => p.ci[0] > 0).length;
+  const t = f.trend;
+  const direction = t.ci[0] > 0 ? "growing" : t.ci[1] < 0 ? "shrinking" : t.per_decade > 0 ? "drifting up, though not clearly" : "drifting down, though not clearly";
+  document.getElementById("focus-verdict").innerHTML =
+    `<strong>${positive === f.periods.length ? "Steady" : positive >= f.periods.length - 1 ? "Mostly steady" : "Patchy"}:</strong> ` +
+    `the top 25% beat the bottom 25% on average in ${positive} of ${f.periods.length} periods, and clearly (90% interval above zero) in ${clearPeriods}. ` +
+    `The gap is ${direction}: the trend line moves ${pct(t.per_decade)} per decade (90% interval ${pct(t.ci[0])} to ${pct(t.ci[1])}). ` +
+    `Leaving out the five best start quarters, the average gap is ${pct(f.gap_without_best5)}, ` +
+    `${f.gap_without_best5_pct.toFixed(0)}% of the full ${pct(row.gap)}` +
+    (f.gap_without_best5_pct < 60 ? ", so a few quarters carry much of the result." : ", so it doesn't hinge on a few lucky quarters.");
+
+  const counts = f.counts.map(c => c[1]);
+  const tiles = [
+    [String(Math.round(counts.reduce((a, b) => a + b, 0) / counts.length)), `scored stocks a quarter on average (${Math.min(...counts)} to ${Math.max(...counts)})`],
+    [pct(row.gap), `Top 25% minus bottom 25%, next-year return (90% interval ${pct(row.ci[0])} to ${pct(row.ci[1])})`],
+    [`${positive} of ${f.periods.length}`, "periods where the top 25% did better"],
+    [pct(t.per_decade), "Change in the gap per decade, from the trend line"],
+    [`${row.top_wins_pct.toFixed(0)}%`, `of ${row.quarters} start quarters where the top 25% did better`],
+  ];
+  document.getElementById("focus-tiles").innerHTML = tiles.map(([v, l]) =>
+    `<div class="tile"><div class="value">${v}</div><div class="label">${l}</div></div>`).join("");
+
+  document.getElementById("focus-count-sub").textContent =
+    `Scored ${f.sector} stocks in the S&P 500 on each quarter end, after exclusions and missing data. Each group is a quarter of these. ` +
+    `The dashed line is the average. Fewer stocks means each group's average is noisier.`;
+  const g = f.groups;
+  document.getElementById("focus-table-sub").textContent =
+    `Average next-year return per start quarter, then a staggered yearly-rebalance portfolio of each whole group, as in the backtest above. ` +
+    `"Beat the sector" counts start quarters where the group did better than the sector's average.`;
+  document.getElementById("focus-table").innerHTML = `<table><thead><tr><th>Group</th><th>Stocks per quarter</th><th>Average next-year return</th>
+    <th>Median stock</th><th>Beat the sector</th><th>Yearly growth (portfolio)</th><th>Volatility</th><th>Worst drop</th></tr></thead><tbody>
+    ${g.map(x => `<tr><td><i style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${colors[x.group - 1]};margin-right:6px"></i>${groupNames[x.group - 1]}</td>
+      <td>${x.stocks_per_quarter.toFixed(1)}</td><td>${pct(x.mean_return)}</td><td>${pct(x.median_stock)}</td>
+      <td>${x.beat_sector_pct.toFixed(0)}%</td><td>${pct(x.cagr)}</td><td>${(x.volatility * 100).toFixed(1)}%</td><td>${pct(x.max_drawdown, 0)}</td></tr>`).join("")}
+    <tr><td><strong>Whole sector</strong></td><td>${(counts.reduce((a, b) => a + b, 0) / counts.length).toFixed(1)}</td><td>${pct(row.sector_mean)}</td><td></td><td></td>
+      <td>${pct(DATA.sectors.curves[f.sector].all.cagr)}</td><td>${(DATA.sectors.curves[f.sector].all.volatility * 100).toFixed(1)}%</td>
+      <td>${pct(DATA.sectors.curves[f.sector].all.max_drawdown, 0)}</td></tr></tbody></table>`;
+  document.getElementById("focus-curves-legend").innerHTML = [1, 2, 3, 4].map(n =>
+    `<span><i style="border-color:${colors[n - 1]};border-top-width:3px"></i>${groupNames[n - 1]}</span>`).join("") +
+    `<span><i style="border-color:var(--reference);border-top-style:dashed"></i>Whole sector</span>`;
+
+  document.getElementById("focus-gap-sub").textContent =
+    `Each bar is one start quarter: the top 25% minus the bottom 25% over the next year. ` +
+    `A 1-year return starts every quarter, so neighboring bars share nine months and tend to move together. Hover for each group's return.`;
+  document.getElementById("focus-period-sub").textContent =
+    `Start quarters grouped into blocks of about four years (${f.periods[0].quarters} quarters each). A bar that stays positive in every block means a steady edge. ` +
+    `One big block and the rest near zero means the result leans on that stretch. With only ~16 quarters per block the intervals are wide.`;
+  document.getElementById("focus-period-table").innerHTML = `<table><thead><tr><th>Start dates</th><th>Top 25%</th><th>Bottom 25%</th><th>Gap</th>
+    <th>90% interval</th><th>Top did better</th><th>Quarters</th></tr></thead><tbody>${f.periods.map(p => `<tr><td>${p.label}</td>
+    <td>${pct(p.top)}</td><td>${pct(p.bottom)}</td><td>${pct(p.gap)}</td><td>${pct(p.ci[0])} to ${pct(p.ci[1])}</td>
+    <td>${p.top_wins_pct.toFixed(0)}%</td><td>${p.quarters}</td></tr>`).join("")}</tbody></table>`;
+}
+
+let vsYearsBench = "cap";
+function drawVersus() {
+  const f = DATA.sectors.focus[focusIndex], v = f.versus, fan = v.fan;
+  const equalColor = css("--series-2");
+  drawGrowth("vs-chart", [
+    { values: v.spy_curve, color: css("--text-primary"), width: 1.75, label: true },
+    { values: v.equal_curve, color: equalColor, width: 1.5, dash: "5 4", label: true },
+    { values: v.cap_curve, color: css("--reference"), width: 1.75, label: true },
+    { values: fan[2], color: css("--series-1"), width: 2.5, label: true },
+  ], [
+    { low: fan[0], high: fan[4], color: css("--series-1-soft") },
+    { low: fan[1], high: fan[3], color: css("--series-1-soft") },
+  ], {
+    aria: `Growth of one dollar in the top 25% of ${f.sector} against ${v.cap_symbol}, ${v.equal_symbol} and the S&P 500`,
+    tip: i => `<span>Top 25%: ${money(fan[2][i])} (90% of paths ${money(fan[0][i])}–${money(fan[4][i])})</span><br>
+      <span>${v.cap_symbol}: ${money(v.cap_curve[i])}</span><br>` +
+      (v.equal_curve[i] !== null ? `<span>${v.equal_symbol}: ${money(v.equal_curve[i])}</span><br>` : "") +
+      `<span>S&amp;P 500: ${money(v.spy_curve[i])}</span>`,
+  });
+  const rc = v.relative_cap, rs = v.relative_spy;
+  const ratio = x => x.toFixed(2) + "×";
+  drawGrowth("vs-relative", [
+    { values: rs[2], color: css("--text-primary"), width: 2 },
+    { values: rc[2], color: css("--series-1"), width: 2.5 },
+  ], [
+    { low: rs[0], high: rs[4], color: "rgba(122, 121, 116, 0.18)" },
+    { low: rc[0], high: rc[4], color: css("--series-1-soft") },
+  ], {
+    height: 280, ticks: [0.5, 0.6, 0.7, 0.8, 0.9, 1, 1.1, 1.25, 1.5, 1.75, 2, 2.5, 3], format: x => x + "×",
+    aria: `Top 25% of ${f.sector} divided by ${v.cap_symbol} and by the S&P 500 over time`,
+    tip: i => `<span>Top 25% ÷ ${v.cap_symbol}: ${ratio(rc[2][i])} (90% of paths ${ratio(rc[0][i])}–${ratio(rc[4][i])})</span><br>
+      <span>Top 25% ÷ S&amp;P 500: ${ratio(rs[2][i])} (${ratio(rs[0][i])}–${ratio(rs[4][i])})</span>`,
+  });
+  const name = vsYearsBench === "cap" ? v.cap_symbol : "S&P 500";
+  drawYears("vs-years", v.years.map(r => ({ ...r, gap: vsYearsBench === "cap" ? r.gap_cap : r.gap_spy })), {
+    aria: `Calendar-year return of the top 25% of ${f.sector} minus ${name}`,
+    tip: r => `<strong>${r.label}</strong><span>Top 25%: ${pct(r.top)} · ${v.cap_symbol}: ${pct(r.cap)} · S&amp;P 500: ${pct(r.spy)}</span><br>
+      <span>Gap to ${name}: ${pct(r.gap[0])} (90% of paths ${pct(r.gap[1])} to ${pct(r.gap[2])})</span>`,
+  });
+  document.querySelectorAll("#vs-years-toggle button").forEach(b => b.setAttribute("aria-pressed", b.dataset.bench === vsYearsBench));
+}
+
+function fillVersus() {
+  const f = DATA.sectors.focus[focusIndex], v = f.versus, st = v.stats, cap = v.cap_stats, spy = v.spy_stats;
+  const early = v.halves.early, late = v.halves.late, since = v.since_equal;
+  const splitYear = DATA.sectors.split.slice(0, 4);
+  document.getElementById("vs-title").textContent = `Against the sector fund (${v.cap_symbol}) and the S&P 500`;
+  document.getElementById("vs-sub").textContent =
+    `What if you only bought ${f.sector}'s top 25% by score? The portfolio is the same as the backtest above: four sleeves rebalanced yearly, ` +
+    `each buying a random half of the group (about ${Math.round(f.groups[0].stocks_per_quarter / 2)} stocks), ${DATA.equity.paths.toLocaleString()} times. ` +
+    `${v.cap_symbol} is the cap-weighted sector fund and ${v.equal_symbol} its equal-weight version, which only starts in ${since.start.slice(0, 7)} ` +
+    `and joins the chart at ${v.cap_symbol}'s value then. The funds hold slightly different companies than FMP's sector label. Log scale.`;
+  // Call it a tie when the paths split close to evenly.
+  const outcome = share => share >= 65 ? "beat" : share <= 35 ? "trailed" : "roughly matched";
+  document.getElementById("vs-verdict").innerHTML =
+    `<strong>Over the whole test it ${outcome(v.beat_cap_pct)} ${v.cap_symbol} and ${outcome(v.beat_spy_pct)} the S&P 500:</strong> ` +
+    `${pct(st.cagr[0])} a year against ${pct(cap.cagr[0])} and ${pct(spy.cagr[0])}. ${v.beat_cap_pct.toFixed(0)}% of paths ended ahead of ${v.cap_symbol} ` +
+    `and ${v.beat_spy_pct.toFixed(0)}% ahead of the S&P 500. Since ${splitYear} it grew ${pct(late.top[0])} a year against ${pct(late.cap)} for ${v.cap_symbol} ` +
+    `and ${pct(late.spy)} for the S&P 500, ahead of ${v.cap_symbol} in ${late.beat_cap_pct.toFixed(0)}% of paths and the S&P 500 in ${late.beat_spy_pct.toFixed(0)}%. ` +
+    (late.beat_spy_pct < 20 && late.beat_cap_pct > 50
+      ? `So it still picks well inside the sector, but the sector itself has lagged the market.`
+      : late.beat_cap_pct < 50 ? `So recently it hasn't even kept up with its own sector.` : "");
+  const tiles = [
+    [`${pct(st.cagr[0])}`, `Top 25%, median yearly growth (90% of paths ${pct(st.cagr[1])} to ${pct(st.cagr[2])})`],
+    [`${pct(cap.cagr[0])} / ${pct(spy.cagr[0])}`, `${v.cap_symbol} / S&P 500, yearly growth`, "compact"],
+    [`${early.beat_cap_pct.toFixed(0)}% → ${late.beat_cap_pct.toFixed(0)}%`, `of paths ahead of ${v.cap_symbol}, before ${splitYear} → since`, "compact"],
+    [`${early.beat_spy_pct.toFixed(0)}% → ${late.beat_spy_pct.toFixed(0)}%`, `of paths ahead of the S&P 500, before ${splitYear} → since`, "compact"],
+    [`${pct(since.top[0])} vs ${pct(since.equal)}`, `Top 25% vs ${v.equal_symbol} (equal-weight sector) a year since ${since.start.slice(0, 7)}`, "compact"],
+  ];
+  document.getElementById("vs-tiles").innerHTML = tiles.map(([value, label, size = ""]) =>
+    `<div class="tile"><div class="value ${size}">${value}</div><div class="label">${label}</div></div>`).join("");
+  document.getElementById("vs-legend").innerHTML =
+    `<span><i style="border-color:var(--series-1)"></i>Top 25% of ${f.sector}, median path</span>` +
+    `<span><i class="swatch" style="background:var(--series-1-soft)"></i>Range of paths</span>` +
+    `<span><i style="border-color:var(--reference)"></i>${v.cap_symbol} (cap-weighted sector)</span>` +
+    `<span><i style="border-color:var(--series-2);border-top-style:dashed"></i>${v.equal_symbol} (equal-weight sector, from ${since.start.slice(0, 4)})</span>` +
+    `<span><i style="border-color:var(--text-primary)"></i>S&amp;P 500</span>`;
+
+  document.getElementById("vs-table-sub").textContent =
+    `Month-end values, ${DATA.sectors.dates[0].slice(0, 7)} to ${DATA.sectors.dates[DATA.sectors.dates.length - 1].slice(0, 7)}. For the top 25% the small figures are the range covering 90% of paths. ` +
+    `Bold marks the better figure in each row. R² is the share of monthly ups and downs explained by the fund or index (1 means they move in lockstep). Over its shorter window since ${since.start.slice(0, 7)}, ${v.equal_symbol} grew ${pct(since.equal)} a year ` +
+    `against ${pct(since.top[0])} for the top 25%, ${pct(since.cap)} for ${v.cap_symbol} and ${pct(since.spy)} for the S&P 500.`;
+  const fmt = { pct: x => pct(x), size: x => (x * 100).toFixed(1) + "%", num: x => x.toFixed(2), share: x => (x * 100).toFixed(0) + "%", money: x => money(x) };
+  const cols = [["Top 25%", st, true], [v.cap_symbol, cap], ["S&P 500", spy]];
+  const rows = [
+    ["Yearly growth (CAGR)", "cagr", fmt.pct, 1], ["$1 grew to", "ending_value", fmt.money, 1],
+    ["Volatility (yearly)", "volatility", fmt.size, -1], ["Sharpe ratio", "sharpe", fmt.num, 1], ["Sortino ratio", "sortino", fmt.num, 1],
+    ["Worst drop from a peak", "max_drawdown", fmt.pct, 1],
+    [`Beta to ${v.cap_symbol}`, "beta_vs_etf", fmt.num, 0, v.cap_symbol], [`Alpha vs ${v.cap_symbol} (yearly)`, "alpha_vs_etf", fmt.pct, 1, v.cap_symbol],
+    [`Information ratio vs ${v.cap_symbol}`, "information_ratio_vs_etf", fmt.num, 1, v.cap_symbol],
+    [`Months beating ${v.cap_symbol}`, "months_beating_vs_etf", fmt.share, 1, v.cap_symbol],
+    [`R² with ${v.cap_symbol}`, "r_squared_vs_etf", fmt.num, 0, v.cap_symbol],
+    ["Beta to the S&P 500", "beta", fmt.num, 0, "S&P 500"], ["Alpha vs the S&P 500 (yearly)", "alpha", fmt.pct, 1, "S&P 500"],
+    ["Information ratio vs the S&P 500", "information_ratio", fmt.num, 1, "S&P 500"],
+    ["Months beating the S&P 500", "months_beating", fmt.share, 1, "S&P 500"],
+    ["R² with the S&P 500", "r_squared", fmt.num, 0, "S&P 500"],
+  ];
+  document.getElementById("vs-table").innerHTML = `<table class="stats-table"><thead><tr><th></th>${cols.map(c => `<th>${c[0]}</th>`).join("")}</tr></thead><tbody>${rows.map(([label, key, format, better, self]) => {
+    const values = cols.map(([name, data]) => name === self ? null : data[key]);
+    const firsts = values.filter(Boolean).map(x => x[0]);
+    const best = better ? (better > 0 ? Math.max(...firsts) : Math.min(...firsts)) : null;
+    return `<tr><td>${label}</td>${values.map((x, i) => !x ? "<td>—</td>" :
+      `<td class="${x[0] === best ? "best" : ""}">${format(x[0])}${cols[i][2] ? `<span class="range">${format(x[1])} to ${format(x[2])}</span>` : ""}</td>`).join("")}</tr>`;
+  }).join("")}</tbody></table>`;
+
+  document.getElementById("vs-relative-sub").textContent =
+    `The top 25% divided by ${v.cap_symbol} (blue) and by the S&P 500 (black). Rising means it is pulling ahead, falling means it is falling behind. ` +
+    `If the blue line rises while the black one falls, the formula is picking well inside a sector that is lagging the market.`;
+  document.getElementById("vs-relative-legend").innerHTML =
+    `<span><i style="border-color:var(--series-1)"></i>Top 25% ÷ ${v.cap_symbol}, median path</span>` +
+    `<span><i style="border-color:var(--text-primary)"></i>Top 25% ÷ S&amp;P 500, median path</span>` +
+    `<span><i class="swatch" style="background:var(--series-1-soft)"></i><i class="swatch" style="background:rgba(122,121,116,0.18);margin-left:-4px"></i>Range covering 90% of paths</span>`;
+  const yearsAhead = key => v.years.filter(r => r[key][0] > 0).length;
+  document.getElementById("vs-years-sub").textContent =
+    `Bars are the median path, whiskers the range covering 90% of paths. The top 25% was ahead of ${v.cap_symbol} in ${yearsAhead("gap_cap")} of ` +
+    `${v.years.length} calendar years and ahead of the S&P 500 in ${yearsAhead("gap_spy")}. Hover a year for each return.`;
+  document.getElementById("vs-years-toggle").innerHTML = [["cap", `vs ${v.cap_symbol}`], ["spy", "vs S&P 500"]].map(([key, label]) =>
+    `<button type="button" data-bench="${key}" aria-pressed="${key === vsYearsBench}">${label}</button>`).join("");
+  document.querySelectorAll("#vs-years-toggle button").forEach(b => b.addEventListener("click", () => {
+    vsYearsBench = b.dataset.bench; drawVersus();
+  }));
+}
+
+const strategyColors = () => ({
+  long: css("--reference"), ls_dollar: "rgba(42, 120, 214, 0.55)", ls_beta: css("--series-1"),
+  etf_dollar: "rgba(235, 104, 52, 0.55)", etf_beta: css("--series-2"),
+});
+function drawLongShort() {
+  const v = DATA.sectors.focus[focusIndex].versus, colors = strategyColors();
+  const order = ["long", "etf_dollar", "ls_dollar", "etf_beta", "ls_beta"];
+  const byKey = Object.fromEntries(v.strategies.map(x => [x.key, x]));
+  drawGrowth("ls-chart", order.map(k => ({ values: byKey[k].fan[1], color: colors[k], width: k.endsWith("beta") ? 2.5 : 1.75,
+    dash: k === "long" ? "5 4" : "none", label: true })), [], {
+    height: 320,
+    aria: "Growth of one dollar in long-only and long-short versions of the sector's top group, median paths",
+    tip: i => v.strategies.map(x => `<span>${x.name}: ${money(x.fan[1][i])}</span>`).join("<br>"),
+  });
+}
+
+function fillLongShort() {
+  const f = DATA.sectors.focus[focusIndex], v = f.versus, colors = strategyColors();
+  const splitYear = DATA.sectors.split.slice(0, 4);
+  const byKey = Object.fromEntries(v.strategies.map(x => [x.key, x]));
+  document.getElementById("ls-sub").textContent =
+    `Each strategy holds $1 in the top 25% (the same random-half paths as above) and shorts either the sector's bottom 25% or ${v.cap_symbol}. ` +
+    `Dollar-neutral shorts $1. Beta-neutral sizes the short each month so the S&P 500's moves cancel out, using betas from the previous ` +
+    `36 months only. The cash from the short earns the T-bill rate, so part of every long-short return is that interest. ` +
+    `Borrowing costs and trading costs are left out. Median paths shown.`;
+  const ls = byKey.ls_beta, etf = byKey.etf_beta;
+  const strong = x => x.stats.t_stat[0] >= 2;
+  document.getElementById("ls-verdict").innerHTML =
+    `<strong>Top minus bottom, beta-neutral: ${pct(ls.stats.cagr[0])} a year (${pct(ls.stats.excess_return[0])} above T-bills), ` +
+    `Sharpe ${ls.stats.sharpe[0].toFixed(2)}.</strong> With the market taken out, its R² with the S&P 500 is ${ls.stats.r_squared[0].toFixed(2)}, ` +
+    `and the t-statistic of ${ls.stats.t_stat[0].toFixed(1)} ${strong(ls) ? "is above 2, so the edge is unlikely to be pure luck" : "is below 2, so the edge could be luck"}. ` +
+    `It made ${pct(ls.early[0])} a year before ${splitYear} and ${pct(ls.late[0])} since. Against ${v.cap_symbol}, beta-neutral, it made ` +
+    `${pct(etf.stats.cagr[0])} a year (${pct(etf.stats.excess_return[0])} above T-bills, t-statistic ${etf.stats.t_stat[0].toFixed(1)}).`;
+  document.getElementById("ls-legend").innerHTML = v.strategies.map(x =>
+    `<span><i style="border-color:${colors[x.key]};${x.key === "long" ? "border-top-style:dashed;" : ""}border-top-width:3px"></i>${x.name}</span>`).join("");
+
+  const fmt = { pct: x => pct(x), size: x => (x * 100).toFixed(1) + "%", num: x => x.toFixed(2), share: x => (x * 100).toFixed(0) + "%", money: x => money(x) };
+  const rows = [
+    ["Yearly growth (CAGR)", s => s.stats.cagr, fmt.pct, 1],
+    ["Return above T-bills (yearly)", s => s.stats.excess_return, fmt.pct, 1],
+    ["$1 grew to", s => s.stats.ending_value, fmt.money, 1],
+    ["Volatility (yearly)", s => s.stats.volatility, fmt.size, -1],
+    ["Sharpe ratio", s => s.stats.sharpe, fmt.num, 1],
+    ["Sortino ratio", s => s.stats.sortino, fmt.num, 1],
+    ["Worst drop from a peak", s => s.stats.max_drawdown, fmt.pct, 1],
+    ["Beta to the S&P 500", s => s.stats.beta, fmt.num, 0],
+    ["R² with the S&P 500", s => s.stats.r_squared, fmt.num, 0],
+    ["t-statistic of average return above T-bills", s => s.stats.t_stat, fmt.num, 1],
+    ["Months with a gain", s => s.stats.months_positive, fmt.share, 1],
+    ["Average short per $1 long", s => s.hedge, fmt.num, 0],
+    [`Yearly growth before ${splitYear}`, s => s.early, fmt.pct, 1],
+    [`Yearly growth since ${splitYear}`, s => s.late, fmt.pct, 1],
+  ];
+  document.getElementById("ls-table").innerHTML = `<table class="stats-table"><thead><tr><th></th>${v.strategies.map(x =>
+    `<th><i style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${colors[x.key]};margin-right:6px"></i>${x.name}</th>`).join("")}</tr></thead><tbody>${rows.map(([label, get, format, better]) => {
+    const values = v.strategies.map(get);
+    const best = better ? (better > 0 ? Math.max(...values.map(x => x[0])) : Math.min(...values.map(x => x[0]))) : null;
+    return `<tr><td>${label}</td>${values.map(x => `<td class="${x[0] === best ? "best" : ""}">${format(x[0])}<span class="range">${format(x[1])} to ${format(x[2])}</span></td>`).join("")}</tr>`;
+  }).join("")}</tbody></table>`;
 }
 
 function fillEquity() {
@@ -1234,6 +1883,9 @@ function fillText() {
     "The most extreme 1% of returns at each end are capped, so a single bad price in the data can't swing a group.",
     "Equity curves: equal money in four sleeves, each rebalanced once a year in a different quarter and equally weighted at purchase, then left to drift. Values are marked at month ends, so the worst drop shown understates drops within a month. No trading costs or taxes.",
     "S&P 500 comparison: SPY with dividends reinvested, and RSP for the equal-weight S&P 500. Sharpe and Sortino ratios use monthly returns over the 3-month Treasury bill. Alpha and beta are measured against SPY.",
+    "Sectors: each sector's scored stocks are split into four equal groups by the same score every quarter. Sector names are FMP's (Consumer Defensive is consumer staples). Sectors averaging fewer than 25 scored stocks a quarter are flagged as small. The widened intervals divide the 10% error allowance across the sectors tested (Bonferroni).",
+    "Sector funds: XLV and XLY are the cap-weighted S&P 500 health care and consumer discretionary funds, and RSPH and RSPD their equal-weight versions (from November 2006), all with dividends reinvested. They follow S&P's sector labels, which differ slightly from FMP's, and XLV includes the health insurers this test leaves out.",
+    "Long-short: $1 long the top group, short either the bottom group or the sector fund. Beta-neutral versions size the short each month from 36-month trailing betas to SPY (dollar-neutral until 12 months of history exist, short capped at $3). Short-sale cash earns the 3-month T-bill rate. No borrowing fees, which can be large for some stocks. The t-statistic uses Newey-West errors with 3 lags.",
     "Holding periods overlap: a 1-year return starts every quarter, so neighboring results share most of their months.",
     "The confidence interval is 90%, built from each quarter's top-minus-bottom gap with Newey-West standard errors to account for the overlap.",
     "FMP is missing many companies that later failed, especially before 2010. Results may look better than reality, and the bias may differ by score group.",
@@ -1258,11 +1910,21 @@ function render() {
   drawHistogram();
   drawSpyWindows();
   drawDrawdowns();
+  drawSectorForest();
+  drawSectorHalves();
+  drawSectorMultiples();
+  drawFocus();
+  drawVersus();
+  drawLongShort();
 }
 
 fillText();
 fillEquity();
 fillSpy();
+fillSectors();
+fillFocus();
+fillVersus();
+fillLongShort();
 drawTable("year-table", "year");
 drawTable("quarter-table", "quarter");
 render();

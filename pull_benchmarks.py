@@ -1,6 +1,8 @@
 """Pulls the benchmarks the strategy is judged against into data/fmp/benchmarks/.
 
-  prices.parquet    daily dividend-adjusted closes for SPY (the S&P 500) and RSP (equal-weight S&P 500)
+  prices.parquet    daily dividend-adjusted closes for SPY (the S&P 500), RSP (equal-weight S&P 500),
+                    and sector ETFs: XLV and XLY (cap-weighted health care and consumer discretionary)
+                    and RSPH and RSPD (their equal-weight versions, which start in November 2006)
   tbills.parquet    daily 3-month Treasury bill yield, in percent, for Sharpe ratios
 """
 import logging
@@ -10,7 +12,7 @@ import pandas as pd
 from fmp_client import FMPClient, ROOT
 
 OUT = ROOT / "data" / "fmp" / "benchmarks"
-SYMBOLS = ["SPY", "RSP"]
+SYMBOLS = ["SPY", "RSP", "XLV", "XLY", "RSPH", "RSPD"]
 START, END = "2004-01-01", pd.Timestamp.today().strftime("%Y-%m-%d")
 # FMP returns at most about three months of Treasury rates per call.
 TREASURY_CHUNK_DAYS = 80

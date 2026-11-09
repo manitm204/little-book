@@ -30,6 +30,13 @@ WINDOW_YEARS = [3, 5]
 # The same start-price and capping rules as the score-group analysis.
 MAX_START_PRICE_AGE_DAYS = 10
 WINSOR_QUANTILE = 0.01
+# Long-short hedges: trailing window, in months, for the betas that size the short side, and the
+# fewest months needed before hedging by beta (until then the short side matches the long side).
+BETA_WINDOW = 36
+BETA_MIN_MONTHS = 12
+MAX_HEDGE = 3.0
+# Newey-West lags for the t-statistic of the average monthly excess return.
+T_STAT_LAGS = 3
 # Where the two halves of the test split, to ask whether the edge has faded.
 SPLIT_DATE = pd.Timestamp("2016-01-01")
 HISTOGRAM_EDGES = np.arange(-0.08, 0.0801, 0.01)
@@ -101,8 +108,11 @@ def benchmark_curves(marks):
     prices = pd.read_parquet(BENCHMARKS / "prices.parquet")
     curves = {}
     for symbol, frame in prices.groupby("symbol"):
-        series = frame.set_index("date")["adjClose"].sort_index().asof(marks).to_numpy()
-        curves[symbol] = series / series[0]
+        series = frame.set_index("date")["adjClose"].sort_index()
+        values = series.asof(marks).to_numpy()
+        # A fund that launched after the first mark is empty until then and starts at $1 on its first month end.
+        values[marks < series.index[0]] = np.nan
+        curves[symbol] = values / values[~np.isnan(values)][0]
     tbills = pd.read_parquet(BENCHMARKS / "tbills.parquet").set_index("date")["month3"].sort_index()
     # The yield known at the start of each month, earned over that month.
     risk_free = (1 + tbills.asof(marks[:-1]).to_numpy() / 100) ** (1 / 12) - 1
@@ -125,9 +135,11 @@ def metrics(values, market, risk_free, years):
         beta = ((r - r.mean(axis=1, keepdims=True)) @ (m - m.mean())) / ((m - m.mean()) @ (m - m.mean()))
         active = r - m
         up, down = m > 0, m < 0
+        correlation = beta * (m - m.mean()).std() / (r - r.mean(axis=1, keepdims=True)).std(axis=1)
         return {
             "cagr": values[:, -1] ** (1 / years) - 1,
             "volatility": r.std(axis=1, ddof=1) * np.sqrt(12),
+            "excess_return": excess.mean(axis=1) * 12,
             "sharpe": excess.mean(axis=1) / excess.std(axis=1, ddof=1) * np.sqrt(12),
             "sortino": excess.mean(axis=1) * 12 / (downside * np.sqrt(12)),
             "max_drawdown": drawdowns(values).min(axis=1),
@@ -138,8 +150,52 @@ def metrics(values, market, risk_free, years):
             "up_capture": r[:, up].mean(axis=1) / m[up].mean(),
             "down_capture": r[:, down].mean(axis=1) / m[down].mean(),
             "months_beating": (active > 0).mean(axis=1),
+            "correlation": correlation,
+            # Share of the monthly ups and downs that the market's moves explain.
+            "r_squared": correlation ** 2,
+            "t_stat": newey_west_t(excess),
+            "months_positive": (r > 0).mean(axis=1),
             "ending_value": values[:, -1],
         }
+
+
+def newey_west_t(x, lags=T_STAT_LAGS):
+    """t-statistic of each row's mean, allowing for correlation between neighboring months."""
+    d = x - x.mean(axis=1, keepdims=True)
+    n = x.shape[1]
+    variance = (d * d).sum(axis=1) / n
+    for lag in range(1, lags + 1):
+        variance += 2 * (1 - lag / (lags + 1)) * (d[:, lag:] * d[:, :-lag]).sum(axis=1) / n
+    return x.mean(axis=1) / np.sqrt(variance / n)
+
+
+def trailing_beta(r, m, window=BETA_WINDOW, minimum=BETA_MIN_MONTHS):
+    """Beta of each row of `r` to `m` in each month, from the months before it only. NaN until `minimum` months."""
+    beta = np.full(r.shape, np.nan)
+    for t in range(minimum, r.shape[1]):
+        lo = max(0, t - window)
+        rr, mm = r[:, lo:t], m[lo:t] - m[lo:t].mean()
+        beta[:, t] = (rr - rr.mean(axis=1, keepdims=True)) @ mm / (mm @ mm)
+    return beta
+
+
+def long_short(long_values, short_values, market, risk_free, hedge):
+    """$1 long, and short either $1 ("dollar") or enough to cancel the long side's market beta ("beta").
+    The cash from the short sale earns the T-bill rate. Borrowing costs are left out.
+    Returns the value of $1 at each month end and the hedge ratio used each month."""
+    def monthly(values):
+        values = np.atleast_2d(values)
+        return values[:, 1:] / values[:, :-1] - 1
+    long_r, short_r = monthly(long_values), monthly(short_values)
+    m = market[1:] / market[:-1] - 1
+    if hedge == "beta":
+        ratio = trailing_beta(long_r, m) / trailing_beta(np.broadcast_to(short_r, long_r.shape), m)
+        ratio = np.clip(np.nan_to_num(ratio, nan=1.0), 0, MAX_HEDGE)
+    else:
+        ratio = np.ones_like(long_r)
+    r = risk_free + (long_r - risk_free) - ratio * (short_r - risk_free)
+    values = np.concatenate([np.ones((r.shape[0], 1)), np.cumprod(1 + r, axis=1)], axis=1)
+    return values, ratio
 
 
 def summarize(measures):
@@ -262,7 +318,7 @@ def build(scored, prices):
 
     spy_vs = {
         "benchmarks": {name: {"curve": c.round(4).tolist(), "stats": summarize(metrics(c, spy, risk_free, years))}
-                       for name, c in bench.items()},
+                       for name, c in bench.items() if name in ("SPY", "RSP")},
         "all_stats": summarize(metrics(curves["all"], spy, risk_free, years)),
         "beat_spy_pct": float((top_paths[:, -1] > spy[-1]).mean() * 100),
         "beat_rsp_pct": float((top_paths[:, -1] > bench["RSP"][-1]).mean() * 100),

@@ -22,6 +22,7 @@ import pandas as pd
 from scipy import stats
 
 import backtest
+import sectors
 
 ROOT = Path(__file__).resolve().parent
 SCORES = ROOT / "data" / "scores" / "magic_formula_scores.csv"
@@ -177,7 +178,7 @@ def scatter_data(returns):
 def main():
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(message)s", datefmt="%H:%M:%S")
     scores = pd.read_csv(SCORES, parse_dates=["score_date"])
-    scored = add_score_groups(scores[scores["final_rank"].notna()].copy())
+    scored = sectors.add_sector_groups(add_score_groups(scores[scores["final_rank"].notna()].copy()))
     prices = load_prices()
 
     payload = {"horizons": {}}
@@ -190,6 +191,12 @@ def main():
                  summary["spread_ci_low"] * 100, summary["spread_ci_high"] * 100, summary["spread_p_value"])
         if name == "year":
             payload["scatter"] = scatter_data(returns)
+            payload["sectors"] = sectors.build(returns, scored, prices,
+                                               lambda series, level: confidence_interval(series, NEWEY_WEST_LAGS["year"], level))
+            for row in payload["sectors"]["rows"]:
+                log.info("  %-24s %4.0f stocks  top minus bottom quarter %+.1f%% (90%% CI %+.1f%% to %+.1f%%)%s",
+                         row["sector"], row["stocks"], row["gap"] * 100, row["ci"][0] * 100, row["ci"][1] * 100,
+                         "  small" if row["small"] else "")
 
     payload["equity"] = eq = backtest.build(scored, prices)
     top, spy = eq["simulated"]["top"]["stats"], eq["vs_spy"]["benchmarks"]["SPY"]["stats"]

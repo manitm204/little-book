@@ -1,0 +1,270 @@
+"""Does the Magic Formula score separate winners from losers better in some sectors than others?
+
+Every quarter, each sector's scored stocks are split into four equal groups by the same score the
+rest of the dashboard uses, and each group's average return over the next year is measured. The
+gap between a sector's top and bottom quarter, averaged over quarters, is that sector's result.
+
+Sectors average 16 to 61 scored stocks a quarter, so the small ones have only a handful of stocks
+per group and are flagged. Testing eight sectors at once also means one is likely to look good by
+chance, so each interval is shown both at 90% and widened for the number of sectors (Bonferroni).
+"""
+import numpy as np
+import pandas as pd
+import statsmodels.api as sm
+
+import backtest
+
+GROUPS = 4
+SMALL_SECTOR = 25
+CONFIDENCE = 0.90
+SPLIT_DATE = backtest.SPLIT_DATE
+ALL = "All sectors"
+# Sectors where the gap looked positive, examined start date by start date, with their sector ETFs:
+# cap-weighted (SPDR) and equal-weight (Invesco, from November 2006).
+FOCUS = ["Healthcare", "Consumer Cyclical"]
+SECTOR_ETFS = {"Healthcare": ("XLV", "RSPH"), "Consumer Cyclical": ("XLY", "RSPD")}
+# Start-date blocks for the "where did the edge come from" table, as (first year, last year).
+PERIODS = [(2005, 2008), (2009, 2012), (2013, 2016), (2017, 2020), (2021, 2026)]
+ROLLING_QUARTERS = 12
+# A 1-year return starts every quarter, so neighboring gaps share nine months.
+TREND_LAGS = 4
+INDEX = "Whole index"
+
+
+def add_sector_groups(scored):
+    """Score order within each sector and date: group 1 is the best quarter, 4 the worst."""
+    by = scored.groupby(["score_date", "sector"])["final_rank"]
+    order = by.rank(method="first")
+    count = by.transform("count")
+    scored["sector_group"] = np.ceil(order / count * GROUPS).astype(int)
+    scored["sector_score"] = 100 * (1 - (order - 1) / (count - 1).clip(lower=1))
+    by_date = scored.groupby("score_date")["final_rank"]
+    scored["index_group"] = np.ceil(by_date.rank(method="first") / by_date.transform("count") * GROUPS).astype(int)
+    return scored
+
+
+def gap_summary(per_date, interval, adjusted_level):
+    """Top minus bottom group, one observation per quarter, with Newey-West intervals."""
+    spread = (per_date[1] - per_date[GROUPS]).dropna()
+    low, high, se = interval(spread, CONFIDENCE)
+    adj_low, adj_high, _ = interval(spread, adjusted_level)
+    return spread, {
+        "gap": float(spread.mean()), "ci": [float(low), float(high)], "ci_adjusted": [float(adj_low), float(adj_high)],
+        "t_stat": float(spread.mean() / se), "quarters": int(len(spread)), "top_wins_pct": float((spread > 0).mean() * 100),
+    }
+
+
+def sector_curves(scored, prices, sectors):
+    """Growth of $1 in each sector's top and bottom group and in the whole sector, staggered yearly rebalance."""
+    marks = backtest.month_marks(scored, prices)
+    labelled = scored.assign(group=scored["sector"] + "|" + scored["sector_group"].astype(str))
+    growth = backtest.holding_growth(labelled, prices, marks)
+    rng = np.random.default_rng(7)
+    years = (len(marks) - 1) / 12
+    curves = {}
+    for sector in sectors:
+        def members(label):
+            return lambda g: g == f"{sector}|{label}"
+        whole = lambda g: np.char.startswith(g.astype(str), sector + "|")
+        lines = {str(g): backtest.portfolio_values(growth, len(marks), members(g), rng)[0] for g in range(1, GROUPS + 1)}
+        lines["all"] = backtest.portfolio_values(growth, len(marks), whole, rng)[0]
+        lines["top"], lines["bottom"] = lines["1"], lines[str(GROUPS)]
+        curves[sector] = {name: {"curve": v.round(4).tolist(), "cagr": float(v[-1] ** (1 / years) - 1),
+                                 "max_drawdown": float(backtest.drawdowns(v).min()),
+                                 "volatility": float(np.std(v[1:] / v[:-1] - 1, ddof=1) * np.sqrt(12))}
+                          for name, v in lines.items()}
+    return marks, growth, curves
+
+
+def versus_benchmarks(sector, marks, growth, bench, risk_free):
+    """The sector's top group, with random half picks as in the backtest, against its sector ETFs and the S&P 500."""
+    cap_symbol, equal_symbol = SECTOR_ETFS[sector]
+    rng = np.random.default_rng(11)
+    n = len(marks)
+    years = (n - 1) / 12
+    paths = backtest.portfolio_values(growth, n, lambda g: g == f"{sector}|1", rng, backtest.SIM_PATHS, backtest.PICK_FRACTION)
+    spy, cap, equal = bench["SPY"], bench[cap_symbol], bench[equal_symbol]
+    vs_spy = backtest.metrics(paths, spy, risk_free, years)
+    vs_cap = backtest.metrics(paths, cap, risk_free, years)
+    split = int(np.argmax(np.asarray(marks >= SPLIT_DATE)))
+
+    def cagr(values, lo=0, hi=n - 1):
+        values = np.atleast_2d(values)
+        return (values[:, hi] / values[:, lo]) ** (12 / (hi - lo)) - 1
+
+    def spread(values):
+        return [float(x) for x in np.percentile(values, [50, 5, 95])]
+
+    # The equal-weight ETF starts later, so it is compared over its own window, with the others re-measured over it.
+    equal_start = int(np.argmax(~np.isnan(equal)))
+    since = {
+        "start": str(marks[equal_start].date()),
+        "top": spread(cagr(paths, equal_start)), "cap": float(cagr(cap, equal_start)[0]),
+        "equal": float(cagr(equal, equal_start)[0]), "spy": float(cagr(spy, equal_start)[0]),
+        "beat_equal_pct": float((cagr(paths, equal_start) > cagr(equal, equal_start)[0]).mean() * 100),
+    }
+    labels, top_years = backtest.calendar_years(paths, marks)
+    _, cap_years = backtest.calendar_years(cap, marks)
+    _, spy_years = backtest.calendar_years(spy, marks)
+    halves = {}
+    for name, lo, hi in [("early", 0, split), ("late", split, n - 1)]:
+        top_half = cagr(paths, lo, hi)
+        halves[name] = {"start": str(marks[lo].date()), "end": str(marks[hi].date()), "top": spread(top_half),
+                        "cap": float(cagr(cap, lo, hi)[0]), "spy": float(cagr(spy, lo, hi)[0]),
+                        "beat_cap_pct": float((top_half > cagr(cap, lo, hi)[0]).mean() * 100),
+                        "beat_spy_pct": float((top_half > cagr(spy, lo, hi)[0]).mean() * 100)}
+    stats = backtest.summarize(vs_spy)
+    for key in ("alpha", "beta", "tracking_error", "information_ratio", "months_beating", "up_capture", "down_capture", "r_squared"):
+        stats[f"{key}_vs_etf"] = backtest.summarize({key: vs_cap[key]})[key]
+
+    def benchmark_stats(curve):
+        measured = backtest.summarize(backtest.metrics(curve, spy, risk_free, years))
+        against_cap = backtest.summarize(backtest.metrics(curve, cap, risk_free, years))
+        for key in ("alpha", "beta", "tracking_error", "information_ratio", "months_beating", "up_capture", "down_capture", "r_squared"):
+            measured[f"{key}_vs_etf"] = against_cap[key]
+        return measured
+
+    bottom = backtest.portfolio_values(growth, n, lambda g: g == f"{sector}|{GROUPS}", rng, backtest.SIM_PATHS, backtest.PICK_FRACTION)
+    strategies = []
+    for key, name, long_side, short_side, hedge in [
+        ("long", f"Long top 25% only", paths, None, None),
+        ("ls_dollar", "Long top, short bottom 25%", paths, bottom, "dollar"),
+        ("ls_beta", "Long top, short bottom 25%, beta-neutral", paths, bottom, "beta"),
+        ("etf_dollar", f"Long top, short {cap_symbol}", paths, cap, "dollar"),
+        ("etf_beta", f"Long top, short {cap_symbol}, beta-neutral", paths, cap, "beta"),
+    ]:
+        if short_side is None:
+            values, ratio = paths, np.ones((len(paths), n - 1))
+        else:
+            values, ratio = backtest.long_short(long_side, short_side, spy, risk_free, hedge)
+        measures = backtest.metrics(values, spy, risk_free, years)
+        strategies.append({
+            "key": key, "name": name,
+            "stats": backtest.summarize(measures),
+            "fan": np.percentile(values, [5, 50, 95], axis=0).round(4).tolist(),
+            "hedge": spread(ratio.mean(axis=1)),
+            "early": spread(cagr(values, 0, split)), "late": spread(cagr(values, split, n - 1)),
+            "positive_pct": float((values[:, -1] > 1).mean() * 100),
+            "beat_cash_pct": float((measures["sharpe"] > 0).mean() * 100),
+        })
+
+    return {
+        "cap_symbol": cap_symbol, "equal_symbol": equal_symbol, "strategies": strategies,
+        "fan": np.percentile(paths, backtest.FAN_PERCENTILES, axis=0).round(4).tolist(),
+        "cap_curve": cap.round(4).tolist(), "spy_curve": spy.round(4).tolist(),
+        # The equal-weight ETF joins the chart at the cap-weighted ETF's value on its first month end.
+        "equal_curve": [None if np.isnan(v) else round(float(v * cap[equal_start]), 4) for v in equal],
+        "stats": stats, "cap_stats": benchmark_stats(cap), "spy_stats": benchmark_stats(spy),
+        "beat_cap_pct": float((paths[:, -1] > cap[-1]).mean() * 100),
+        "beat_spy_pct": float((paths[:, -1] > spy[-1]).mean() * 100),
+        "relative_cap": np.percentile(paths / cap, backtest.FAN_PERCENTILES, axis=0).round(4).tolist(),
+        "relative_spy": np.percentile(paths / spy, backtest.FAN_PERCENTILES, axis=0).round(4).tolist(),
+        "years": [{"label": label, "top": float(np.median(top_years[:, i])), "cap": float(cap_years[0, i]), "spy": float(spy_years[0, i]),
+                   "gap_cap": spread(top_years[:, i] - cap_years[0, i]), "gap_spy": spread(top_years[:, i] - spy_years[0, i])}
+                  for i, label in enumerate(labels)],
+        "halves": halves,
+        "since_equal": since,
+    }
+
+
+def trend(spread):
+    """Change in the gap per decade of start dates, with errors that allow for the overlap."""
+    years = np.asarray((spread.index - spread.index[0]).days / 365.25)
+    fit = sm.OLS(spread.to_numpy(), sm.add_constant(years)).fit(cov_type="HAC", cov_kwds={"maxlags": TREND_LAGS})
+    low, high = fit.conf_int(alpha=1 - CONFIDENCE)[1]
+    return {"per_decade": float(fit.params[1] * 10), "ci": [float(low * 10), float(high * 10)], "p_value": float(fit.pvalues[1]),
+            "start": float(fit.params[0]), "end": float(fit.params[0] + fit.params[1] * years[-1])}
+
+
+def focus(sector, returns, scored, curves, interval):
+    """Everything for one sector, start date by start date."""
+    part = returns[returns["sector"] == sector]
+    per_date = part.groupby(["score_date", "sector_group"])["forward_return"].mean().unstack()
+    spread = (per_date[1] - per_date[GROUPS]).dropna()
+    sector_mean = per_date.mean(axis=1)
+    counts = scored[scored["sector"] == sector].groupby("score_date").size()
+    groups = []
+    for g in range(1, GROUPS + 1):
+        rows = part[part["sector_group"] == g]
+        curve = curves[sector][str(g)]
+        groups.append({
+            "group": g, "mean_return": float(per_date[g].mean()), "median_stock": float(rows["forward_return"].median()),
+            "beat_sector_pct": float((per_date[g] > sector_mean).mean() * 100),
+            "stocks_per_quarter": float(rows.groupby("score_date").size().mean()), "stock_quarters": int(len(rows)),
+            "cagr": curve["cagr"], "max_drawdown": curve["max_drawdown"], "volatility": curve["volatility"],
+        })
+    periods = []
+    for first, last in PERIODS:
+        mask = (spread.index.year >= first) & (spread.index.year <= last)
+        chunk = spread[mask]
+        if len(chunk) < 3:
+            continue
+        low, high, _ = interval(chunk, CONFIDENCE)
+        periods.append({"label": f"{first}–{min(last, spread.index.max().year)}", "gap": float(chunk.mean()),
+                        "ci": [float(low), float(high)], "quarters": int(len(chunk)),
+                        "top_wins_pct": float((chunk > 0).mean() * 100),
+                        "top": float(per_date.loc[chunk.index, 1].mean()), "bottom": float(per_date.loc[chunk.index, GROUPS].mean())})
+    rolling = spread.rolling(ROLLING_QUARTERS).mean()
+    return {
+        "sector": sector,
+        "counts": [[str(d.date()), int(n)] for d, n in counts.items()],
+        "groups": groups,
+        "by_date": [[str(d.date()), *[round(float(per_date.loc[d, g]), 4) for g in range(1, GROUPS + 1)], round(float(v), 4),
+                     None if np.isnan(rolling[d]) else round(float(rolling[d]), 4)] for d, v in spread.items()],
+        "periods": periods,
+        "trend": trend(spread),
+        "best_quarters": [[str(d.date()), round(float(v), 4)] for d, v in spread.nlargest(5).items()],
+        # How much of the total gap the five best start dates account for.
+        "gap_without_best5": float(spread.drop(spread.nlargest(5).index).mean()),
+        "gap_without_best5_pct": float(spread.drop(spread.nlargest(5).index).mean() / spread.mean() * 100),
+    }
+
+
+def build(returns, scored, prices, interval):
+    """`returns` are next-year returns per stock and quarter. `interval(series, level)` gives (low, high, se)."""
+    sectors = sorted(returns["sector"].dropna().unique())
+    adjusted_level = 1 - (1 - CONFIDENCE) / len(sectors)
+    sizes = scored.groupby(["sector", "score_date"]).size().groupby("sector").mean()
+    rows = []
+    for sector in [*sectors, ALL, INDEX]:
+        part = returns if sector in (ALL, INDEX) else returns[returns["sector"] == sector]
+        if sector == ALL:
+            # Each sector's groups pooled with equal weight: the top quarter of every sector, held together.
+            per_date = part.groupby(["score_date", "sector", "sector_group"])["forward_return"].mean() \
+                .groupby(["score_date", "sector_group"]).mean().unstack()
+        elif sector == INDEX:
+            # The whole index split into quarters regardless of sector, so sector tilts count too.
+            per_date = part.groupby(["score_date", "index_group"])["forward_return"].mean().unstack()
+        else:
+            per_date = part.groupby(["score_date", "sector_group"])["forward_return"].mean().unstack()
+        spread, summary = gap_summary(per_date, interval, adjusted_level)
+        sector_mean = per_date.mean(axis=1)
+        score, by = ("score", ["score_date"]) if sector == INDEX else ("sector_score", ["score_date", "sector"])
+        correlation = part.groupby(by).apply(
+            lambda d: d[score].corr(d["forward_return"], method="spearman"), include_groups=False).dropna()
+        halves = {}
+        for name, mask in [("early", spread.index < SPLIT_DATE), ("late", spread.index >= SPLIT_DATE)]:
+            low, high, _ = interval(spread[mask], CONFIDENCE)
+            halves[name] = {"gap": float(spread[mask].mean()), "ci": [float(low), float(high)], "quarters": int(mask.sum())}
+        rows.append({
+            "sector": sector,
+            "stocks": float(sizes.sum() if sector in (ALL, INDEX) else sizes[sector]),
+            "small": bool(sector in sizes and sizes[sector] < SMALL_SECTOR),
+            "reference": sector in (ALL, INDEX),
+            "groups": per_date.mean().round(5).tolist(),
+            "relative": per_date.sub(sector_mean, axis=0).mean().round(5).tolist(),
+            "sector_mean": float(sector_mean.mean()),
+            "rank_correlation": float(correlation.mean()),
+            "halves": halves,
+            **summary,
+        })
+    rows.sort(key=lambda r: (r["reference"], -r["gap"]))
+    marks, growth, curves = sector_curves(scored, prices, sectors)
+    bench, risk_free = backtest.benchmark_curves(marks)
+    return {
+        "rows": rows, "groups": GROUPS, "small_threshold": SMALL_SECTOR, "confidence": CONFIDENCE,
+        "adjusted_level": adjusted_level, "sector_count": len(sectors), "split": str(SPLIT_DATE.date()),
+        "dates": [str(d.date()) for d in marks], "curves": curves, "rolling_quarters": ROLLING_QUARTERS,
+        "focus": [{**focus(sector, returns, scored, curves, interval),
+                   "versus": versus_benchmarks(sector, marks, growth, bench, risk_free)} for sector in FOCUS],
+    }
