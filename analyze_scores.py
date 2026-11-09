@@ -21,6 +21,8 @@ import numpy as np
 import pandas as pd
 from scipy import stats
 
+import backtest
+
 ROOT = Path(__file__).resolve().parent
 SCORES = ROOT / "data" / "scores" / "magic_formula_scores.csv"
 YEARS = ROOT / "data" / "fmp" / "years"
@@ -188,6 +190,14 @@ def main():
                  summary["spread_ci_low"] * 100, summary["spread_ci_high"] * 100, summary["spread_p_value"])
         if name == "year":
             payload["scatter"] = scatter_data(returns)
+
+    payload["equity"] = eq = backtest.build(scored, prices)
+    top, spy = eq["simulated"]["top"]["stats"], eq["vs_spy"]["benchmarks"]["SPY"]["stats"]
+    log.info("Equity curves: top 10%% median CAGR %+.1f%% (Sharpe %.2f, max drop %.0f%%), bottom %+.1f%%, S&P 500 %+.1f%% "
+             "(Sharpe %.2f, max drop %.0f%%); top beat the S&P in %.0f%% of paths",
+             top["cagr"][0] * 100, top["sharpe"][0], top["max_drawdown"][0] * 100,
+             eq["simulated"]["bottom"]["stats"]["cagr"][0] * 100, spy["cagr"][0] * 100, spy["sharpe"][0],
+             spy["max_drawdown"][0] * 100, eq["vs_spy"]["beat_spy_pct"])
 
     page = TEMPLATE.read_text().replace("/*DATA*/null", json.dumps(payload))
     PAGE.write_text(page)
