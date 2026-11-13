@@ -110,7 +110,7 @@
   .toggle { display: inline-flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; margin-bottom: 8px; }
   .toggle button { font: inherit; font-size: 13px; padding: 4px 12px; border: 0; background: transparent; color: var(--text-secondary); cursor: pointer; }
   .stats-table td.best { font-weight: 600; color: var(--text-primary); }
-  .stats-table td .range { display: block; font-size: 11px; color: var(--text-muted); }
+  .stats-table td .range, .stats-table th .range { display: block; font-size: 11px; color: var(--text-muted); }
   .stats-table td:first-child { color: var(--text-secondary); }
   .heat td.cell { text-align: center; font-weight: 500; min-width: 64px; }
   .heat td.ref, .heat tr.ref td { border-top: 2px solid var(--border); }
@@ -414,6 +414,21 @@
     <div class="chart" id="blend-QQQ-drawdown"></div>
   </section>
 
+
+  <section class="card">
+    <h2>What borrowing and trading costs do</h2>
+    <div class="sub" id="cost-sub"></div>
+    <div class="toggle" id="cost-toggle"></div>
+    <div class="verdict" id="cost-verdict"></div>
+    <div class="chart" id="cost-chart"></div>
+    <div class="legend" id="cost-legend"></div>
+    <h3>Each cost scenario</h3>
+    <div class="sub">Median across paths, with the range covering 90% of paths underneath.</div>
+    <div class="table-wrap" id="cost-table"></div>
+    <h3>Where the edge runs out: alpha vs. the S&amp;P 500 by borrow fee and trading cost</h3>
+    <div class="sub" id="cost-grid-sub"></div>
+    <div class="table-wrap" id="cost-grid"></div>
+  </section>
 
   <section class="card">
     <h2>Score vs. return over the next year, stock by stock</h2>
@@ -1911,6 +1926,73 @@ function fillBlend(symbol) {
 }
 
 
+let costKey = "m75";
+const costColors = () => ({ none: css("--series-1"), low: css("--series-3"), medium: css("--series-2"), high: css("--text-secondary") });
+const bps = v => (v * 10000).toFixed(0) + " bp";
+function costStrategy() { return DATA.sectors.mixes.costs.strategies.find(x => x.key === costKey); }
+function drawCosts() {
+  const c = DATA.sectors.mixes.costs, st = costStrategy(), colors = costColors();
+  const lines = [...st.scenarios.map(sc => ({ values: sc.curve, color: colors[sc.key], width: sc.key === "none" ? 2.5 : 2, label: true })),
+    { values: c.spy_curve, color: css("--text-primary"), dash: "5 4", width: 1.5, label: true }];
+  drawGrowth("cost-chart", lines, [], {
+    height: 360, aria: `Growth of one dollar in ${st.name} under each cost scenario, against SPY`,
+    tip: i => st.scenarios.map(sc => `<span>${sc.name}: ${money(sc.curve[i])}</span>`).join("<br>") + `<br><span>S&P 500 (SPY): ${money(c.spy_curve[i])}</span>`,
+  });
+}
+function fillCosts() {
+  const c = DATA.sectors.mixes.costs, st = costStrategy(), colors = costColors(), splitYear = DATA.sectors.mixes.split.slice(0, 4);
+  document.getElementById("cost-sub").textContent =
+    `Two costs. Borrowing: a yearly fee on the money that is short. Trading: a cost on every dollar bought or sold, for the spread and price impact. ` +
+    `Trades counted are the monthly resets back to the target weights and the yearly rebalance of each stock sleeve (one sleeve each quarter). ` +
+    `Each rebalance is treated as selling the whole sleeve and buying a fresh one, which overstates trading a little, since some stocks stay in. ` +
+    `Scenarios: ${c.strategies[0].scenarios.slice(1).map(sc => `${sc.name.toLowerCase()} = ${(sc.borrow * 100).toFixed(1)}% borrow, ${bps(sc.trading)} per trade`).join("; ")}. ` +
+    `Short positions in S&P 500 stocks usually cost 0.25–1% a year to borrow, and more for hard-to-borrow names.`;
+  document.getElementById("cost-toggle").innerHTML = c.strategies.map(x =>
+    `<button data-key="${x.key}" aria-pressed="${x.key === costKey}">${x.name}</button>`).join("");
+  document.querySelectorAll("#cost-toggle button").forEach(b => b.onclick = () => { costKey = b.dataset.key; fillCosts(); drawCosts(); });
+  const by = Object.fromEntries(st.scenarios.map(sc => [sc.key, sc.stats]));
+  const spy = c.spy_stats;
+  document.getElementById("cost-verdict").innerHTML =
+    `<strong>${st.name}: ${pct(by.none.cagr[0])} a year before costs, ${pct(by.medium.cagr[0])} with medium costs and ${pct(by.high.cagr[0])} with high costs. ` +
+    `Sharpe ${by.none.sharpe[0].toFixed(2)} → ${by.medium.sharpe[0].toFixed(2)} → ${by.high.sharpe[0].toFixed(2)}, against ${spy.sharpe[0].toFixed(2)} for SPY.</strong> ` +
+    `Alpha vs. the S&P 500 falls from ${pct(by.none.alpha[0])} to ${pct(by.medium.alpha[0])} (t-statistic ${by.medium.alpha_t[0].toFixed(1)}) with medium costs ` +
+    `and ${pct(by.high.alpha[0])} (t-statistic ${by.high.alpha_t[0].toFixed(1)}) with high costs. ` +
+    `It trades about ${by.none.turnover[0].toFixed(1)}× its value a year${st.short ? `, and ${(st.short * 100).toFixed(0)}% of the money is short` : ""}.`;
+  document.getElementById("cost-legend").innerHTML = st.scenarios.map(sc =>
+    `<span><i style="border-color:${colors[sc.key]};border-top-width:3px"></i>${sc.name}</span>`).join("") +
+    `<span><i style="border-color:var(--text-primary);border-top-width:3px;border-top-style:dashed"></i>S&amp;P 500 (SPY)</span>`;
+  const f = { pct: v => pct(v), size: v => (v * 100).toFixed(1) + "%", num: v => v.toFixed(2), share: v => (v * 100).toFixed(0) + "%",
+    money: v => money(v), times: v => v.toFixed(2) + "×" };
+  const rows = [
+    ["Yearly growth (CAGR)", "cagr", f.pct], ["$1 grew to", "ending_value", f.money],
+    ["Yearly cost drag", "cost_drag", f.size], ["Dollars traded per $1, yearly", "turnover", f.times],
+    [`CAGR since ${splitYear}`, "late", f.pct],
+    ["Volatility (yearly)", "volatility", f.size], ["Sharpe ratio", "sharpe", f.num], ["Sortino ratio", "sortino", f.num],
+    ["Worst drop from a peak", "max_drawdown", f.pct], ["Calmar ratio", "calmar", f.num],
+    ["Beta to SPY", "beta", f.num], ["Alpha vs. SPY (yearly)", "alpha", f.pct], ["t-statistic of alpha vs. SPY", "alpha_t", f.num],
+    ["Alpha vs. QQQ (yearly)", "alpha_etf", f.pct], ["Calendar years beating SPY", "years_beating_spy", f.share],
+  ];
+  const head = `<tr><th></th>${st.scenarios.map(sc => `<th><i style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${colors[sc.key]};margin-right:6px"></i>${sc.name}<span class="range" style="font-weight:400">${sc.key === "none" ? "&nbsp;" : `${(sc.borrow * 100).toFixed(1)}% borrow, ${bps(sc.trading)}`}</span></th>`).join("")}<th>S&amp;P 500 (SPY)</th></tr>`;
+  const body = rows.map(([label, key, format]) => `<tr><td>${label}</td>${st.scenarios.map(sc => {
+    const v = sc.stats[key];
+    return v ? `<td>${format(v[0])}<span class="range">${format(v[1])} to ${format(v[2])}</span></td>` : "<td>—</td>";
+  }).join("")}<td>${spy[key] && !["cost_drag", "turnover"].includes(key) ? format(spy[key][0]) : "—"}</td></tr>`).join("");
+  document.getElementById("cost-table").innerHTML = `<table class="stats-table"><thead>${head}</thead><tbody>${body}</tbody></table>`;
+
+  document.getElementById("cost-grid-sub").textContent =
+    `Median yearly alpha against the S&P 500 for ${st.name}, with the Sharpe ratio underneath (SPY's is ${spy.sharpe[0].toFixed(2)}). ` +
+    `Blue cells keep a positive alpha; orange cells lose it. Rows are the yearly borrow fee, columns the cost per dollar traded.`;
+  const blue = css("--series-1"), orange = css("--series-2");
+  const cell = g => {
+    const strength = Math.min(Math.abs(g.alpha) / 0.05, 1) * 0.45 + 0.08;
+    const color = g.alpha >= 0 ? blue : orange;
+    return `<td style="background:color-mix(in srgb, ${color} ${(strength * 100).toFixed(0)}%, transparent)">${pct(g.alpha)}<span class="range">Sharpe ${g.sharpe.toFixed(2)}</span></td>`;
+  };
+  document.getElementById("cost-grid").innerHTML = `<table class="stats-table"><thead><tr><th>Borrow fee ↓ / trading cost →</th>${c.grid_trading.map(t =>
+    `<th>${bps(t)}</th>`).join("")}</tr></thead><tbody>${st.grid.map((row, i) =>
+    `<tr><td>${(c.grid_borrow[i] * 100).toFixed(0)}% a year${st.short ? "" : " (no short)"}</td>${row.map(cell).join("")}</tr>`).join("")}</tbody></table>`;
+}
+
 function fillEquity() {
   const eq = DATA.equity, top = eq.simulated.top, bottom = eq.simulated.bottom, all = eq.full.all;
   const picks = Math.round(eq.group_size_median * eq.pick_fraction);
@@ -2140,6 +2222,7 @@ function render() {
   drawMixes();
   drawBlend("SPY");
   drawBlend("QQQ");
+  drawCosts();
 }
 
 fillText();
@@ -2152,6 +2235,7 @@ fillLongShort();
 fillMixes();
 fillBlend("SPY");
 fillBlend("QQQ");
+fillCosts();
 drawTable("year-table", "year");
 drawTable("quarter-table", "quarter");
 render();

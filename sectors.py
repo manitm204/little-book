@@ -37,6 +37,12 @@ MIXES = [("long", "100% long", 1.0, 0.0), ("m75", "75% long / 25% short", 0.75, 
 # A portfolio split between one of the mixes and SPY, reset to these shares every month.
 BLEND_MIX, BLEND_SHARE = "m75", 0.5
 BLEND_WITH = ["SPY", "QQQ"]
+# Cost scenarios: (key, label, yearly fee to borrow the shorted stocks, cost per dollar traded one way).
+# The trading cost stands for spread plus market impact on S&P 500 stocks.
+COST_SCENARIOS = [("none", "No costs", 0.0, 0.0), ("low", "Low", 0.005, 0.0005),
+                  ("medium", "Medium", 0.015, 0.0010), ("high", "High", 0.03, 0.0025)]
+COST_GRID_BORROW = [0.0, 0.01, 0.02, 0.03, 0.04, 0.05]
+COST_GRID_TRADING = [0.0, 0.0005, 0.0010, 0.0025, 0.0050]
 
 
 def add_sector_groups(scored):
@@ -217,6 +223,67 @@ def path_stats(values, marks, spy, etf, risk_free, years, split):
     }
 
 
+def with_costs(weights, returns, risk_free, borrow, trading):
+    """Monthly returns after costs for a portfolio reset to `weights` every month end.
+
+    `weights` and `returns` are dicts by component: "top" and "bottom" are the sleeve portfolios (a
+    negative weight is a short), anything else is a fund. The rest of the money is in T-bills. Trading
+    counts the monthly reset back to the weights, and the stock sleeves' yearly rebalances, one sleeve
+    each quarter, treated as selling the whole sleeve and buying a new one (an upper bound, since some
+    stocks stay in). Borrowing is charged on the short weight.
+    Returns (net monthly returns, gross monthly returns, dollars traded per $1 each month)."""
+    shape = next(iter(returns.values())).shape
+    gross = risk_free + sum(w * (returns[k] - risk_free) for k, w in weights.items())
+    traded = np.zeros(shape)
+    for k, w in weights.items():
+        drifted = w * (1 + returns[k]) / (1 + gross)
+        traded += np.abs(drifted - w)
+    # The first purchase, then a quarter of each stock side sold and rebought every three months.
+    traded[:, 0] += sum(abs(w) for w in weights.values())
+    stock_side = sum(abs(weights.get(k, 0)) for k in ("top", "bottom"))
+    rotation = np.array([t % (backtest.HOLD_MONTHS // backtest.SLEEVES) == 0 and t > 0 for t in range(shape[1])])
+    traded[:, rotation] += 2 * stock_side / backtest.SLEEVES
+    short = sum(-w for w in weights.values() if w < 0)
+    net = gross - short * borrow / 12 - trading * traded
+    return net, gross, traded
+
+
+def grow(r):
+    return np.concatenate([np.ones((len(r), 1)), np.cumprod(1 + r, axis=1)], axis=1)
+
+
+def cost_tests(marks, returns, strategies, spy, qqq, risk_free, split):
+    """Every strategy under each cost scenario, plus a grid of borrow fee against trading cost."""
+    n = len(marks)
+    years = (n - 1) / 12
+    out = []
+    for key, name, weights in strategies:
+        scenarios = []
+        for s_key, s_name, borrow, trading in COST_SCENARIOS:
+            net, gross, traded = with_costs(weights, returns, risk_free, borrow, trading)
+            values = grow(net)
+            stats = backtest.summarize(path_stats(values, marks, spy, qqq, risk_free, years, split))
+            gross_cagr = grow(gross)[:, -1] ** (1 / years) - 1
+            stats["cost_drag"] = backtest.summarize({"x": gross_cagr - (values[:, -1] ** (1 / years) - 1)})["x"]
+            # Ongoing turnover, leaving out the first purchase.
+            stats["turnover"] = backtest.summarize({"x": traded[:, 1:].sum(axis=1) / years})["x"]
+            scenarios.append({"key": s_key, "name": s_name, "borrow": borrow, "trading": trading, "stats": stats,
+                              "curve": np.median(values, axis=0).round(4).tolist()})
+        grid = []
+        for borrow in COST_GRID_BORROW:
+            row = []
+            for trading in COST_GRID_TRADING:
+                net, _, _ = with_costs(weights, returns, risk_free, borrow, trading)
+                measured = backtest.metrics(grow(net), spy, risk_free, years)
+                row.append({"alpha": float(np.median(measured["alpha"])), "sharpe": float(np.median(measured["sharpe"])),
+                            "cagr": float(np.median(measured["cagr"]))})
+            grid.append(row)
+        short = sum(-w for w in weights.values() if w < 0)
+        out.append({"key": key, "name": name, "short": short, "scenarios": scenarios, "grid": grid})
+    return {"strategies": out, "grid_borrow": COST_GRID_BORROW, "grid_trading": COST_GRID_TRADING,
+            "spy_curve": spy.round(4).tolist(), "spy_stats": backtest.summarize(path_stats(spy, marks, spy, qqq, risk_free, years, split))}
+
+
 def mixes(sector, marks, growth, bench, risk_free):
     """Long the sector's top 25% and short its bottom 25% in several proportions, with random half picks as elsewhere."""
     cap_symbol, _ = SECTOR_ETFS[sector]
@@ -266,7 +333,15 @@ def mixes(sector, marks, growth, bench, risk_free):
             "fund": {"curve": fund.round(4).tolist(), "drawdown": backtest.drawdowns(fund).round(4).tolist(),
                      "stats": backtest.summarize(path_stats(fund, marks, spy, fund, risk_free, years, split))},
         }
-    return {"sector": sector, "cap_symbol": cap_symbol, "mixes": rows, "blends": blends, "blend_share": BLEND_SHARE, "benchmarks": benchmarks, "year_labels": labels,
+    monthly = lambda c: np.broadcast_to(c[1:] / c[:-1] - 1, long_r.shape)
+    returns = {"top": long_r, "bottom": short_r, "SPY": monthly(spy), "QQQ": monthly(bench["QQQ"])}
+    lw, sw = blend_weights
+    strategies = [(key, name, {"top": l, "bottom": -sh} if sh else {"top": l}) for key, name, l, sh in MIXES]
+    for symbol in BLEND_WITH:
+        strategies.append((f"blend_{symbol}", blends[symbol]["name"],
+                           {"top": BLEND_SHARE * lw, "bottom": -BLEND_SHARE * sw, symbol: 1 - BLEND_SHARE}))
+    costs = cost_tests(marks, returns, strategies, spy, bench["QQQ"], risk_free, split)
+    return {"sector": sector, "cap_symbol": cap_symbol, "mixes": rows, "blends": blends, "costs": costs, "blend_share": BLEND_SHARE, "benchmarks": benchmarks, "year_labels": labels,
             "split": str(SPLIT_DATE.date())}
 
 
