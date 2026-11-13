@@ -12,7 +12,7 @@ import pandas as pd
 from fmp_client import FMPClient, ROOT
 
 OUT = ROOT / "data" / "fmp" / "benchmarks"
-SYMBOLS = ["SPY", "RSP", "XLV", "XLY", "RSPH", "RSPD"]
+SYMBOLS = ["SPY", "RSP", "QQQ", "XLV", "XLY", "RSPH", "RSPD"]
 START, END = "2004-01-01", pd.Timestamp.today().strftime("%Y-%m-%d")
 # FMP returns at most about three months of Treasury rates per call.
 TREASURY_CHUNK_DAYS = 80

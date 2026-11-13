@@ -29,6 +29,14 @@ ROLLING_QUARTERS = 12
 # A 1-year return starts every quarter, so neighboring gaps share nine months.
 TREND_LAGS = 4
 INDEX = "Whole index"
+# Mixes of long the top 25% and short the bottom 25% in one sector, as shares of the money:
+# (key, label, long, short). The rest of the money, and the cash from the short sale, earns T-bills.
+MIX_SECTOR = "Healthcare"
+MIXES = [("long", "100% long", 1.0, 0.0), ("m75", "75% long / 25% short", 0.75, 0.25),
+         ("m50", "50% long / 50% short", 0.5, 0.5), ("ls", "100% long / 100% short", 1.0, 1.0)]
+# A portfolio split between one of the mixes and SPY, reset to these shares every month.
+BLEND_MIX, BLEND_SHARE = "m75", 0.5
+BLEND_WITH = ["SPY", "QQQ"]
 
 
 def add_sector_groups(scored):
@@ -167,6 +175,101 @@ def versus_benchmarks(sector, marks, growth, bench, risk_free):
     }
 
 
+def path_stats(values, marks, spy, etf, risk_free, years, split):
+    """Every measure for each path of `values`, against the S&P 500 and against the sector ETF."""
+    values = np.atleast_2d(values)
+    measures = backtest.metrics(values, spy, risk_free, years)
+    vs_etf = backtest.metrics(values, etf, risk_free, years)
+    r = values[:, 1:] / values[:, :-1] - 1
+    m = spy[1:] / spy[:-1] - 1
+    excess, market_excess = r - risk_free, m - risk_free
+    # Alpha's t-statistic from the monthly return left after the market part, Newey-West.
+    residual = excess - measures["beta"][:, None] * market_excess
+    dd = backtest.drawdowns(values)
+    underwater = np.zeros(len(values)); run = np.zeros(len(values))
+    for t in range(dd.shape[1]):
+        run = np.where(dd[:, t] < -1e-9, run + 1, 0)
+        underwater = np.maximum(underwater, run)
+    down = m < 0
+    mm = m[down] - m[down].mean()
+    labels, by_year = backtest.calendar_years(values, marks)
+    _, spy_years = backtest.calendar_years(spy, marks)
+    full_years = [i for i, label in enumerate(labels) if "(" not in label]
+    by_year, spy_full = by_year[:, full_years], spy_years[:, full_years]
+    centered = r - r.mean(axis=1, keepdims=True)
+
+    def cagr(lo, hi):
+        return (values[:, hi] / values[:, lo]) ** (12 / (hi - lo)) - 1
+
+    n = values.shape[1]
+    return {
+        **measures,
+        "alpha_t": backtest.newey_west_t(residual),
+        "calmar": measures["cagr"] / -measures["max_drawdown"],
+        "underwater_months": underwater,
+        "worst_month": r.min(axis=1), "best_month": r.max(axis=1),
+        "worst_year": by_year.min(axis=1), "best_year": by_year.max(axis=1),
+        "years_positive": (by_year > 0).mean(axis=1), "years_beating_spy": (by_year > spy_full).mean(axis=1),
+        "skew": (centered ** 3).mean(axis=1) / centered.std(axis=1) ** 3,
+        "downside_beta": (r[:, down] - r[:, down].mean(axis=1, keepdims=True)) @ mm / (mm @ mm),
+        "beta_etf": vs_etf["beta"], "correlation_etf": vs_etf["correlation"], "alpha_etf": vs_etf["alpha"],
+        "early": cagr(0, split), "late": cagr(split, n - 1),
+    }
+
+
+def mixes(sector, marks, growth, bench, risk_free):
+    """Long the sector's top 25% and short its bottom 25% in several proportions, with random half picks as elsewhere."""
+    cap_symbol, _ = SECTOR_ETFS[sector]
+    rng = np.random.default_rng(13)
+    n = len(marks)
+    years = (n - 1) / 12
+    split = int(np.argmax(np.asarray(marks >= SPLIT_DATE)))
+    spy, etf = bench["SPY"], bench[cap_symbol]
+    top = backtest.portfolio_values(growth, n, lambda g: g == f"{sector}|1", rng, backtest.SIM_PATHS, backtest.PICK_FRACTION)
+    bottom = backtest.portfolio_values(growth, n, lambda g: g == f"{sector}|{GROUPS}", rng, backtest.SIM_PATHS, backtest.PICK_FRACTION)
+    long_r, short_r = top[:, 1:] / top[:, :-1] - 1, bottom[:, 1:] / bottom[:, :-1] - 1
+    _, top_years = backtest.calendar_years(top, marks)
+    labels, spy_years = backtest.calendar_years(spy, marks)
+    blend_weights = next((lw, sw) for k, _, lw, sw in MIXES if k == BLEND_MIX)
+    mix_r = risk_free + blend_weights[0] * (long_r - risk_free) - blend_weights[1] * (short_r - risk_free)
+    rows = []
+    for key, name, long_weight, short_weight in MIXES:
+        # Rebalanced to the target weights every month.
+        r = risk_free + long_weight * (long_r - risk_free) - short_weight * (short_r - risk_free)
+        values = np.concatenate([np.ones((len(r), 1)), np.cumprod(1 + r, axis=1)], axis=1)
+        _, years_r = backtest.calendar_years(values, marks)
+        rows.append({"key": key, "name": name, "long": long_weight, "short": short_weight,
+                     "stats": backtest.summarize(path_stats(values, marks, spy, etf, risk_free, years, split)),
+                     "fan": np.percentile(values, [5, 50, 95], axis=0).round(4).tolist(),
+                     "drawdown": np.median(backtest.drawdowns(values), axis=0).round(4).tolist(),
+                     "years": [float(np.median(years_r[:, i])) for i in range(len(labels))],
+                     "beat_spy_pct": float((values[:, -1] > spy[-1]).mean() * 100)})
+    benchmarks = []
+    for key, name, curve in [("spy", "S&P 500 (SPY)", spy), ("etf", f"Healthcare ETF ({cap_symbol})", etf)]:
+        _, years_b = backtest.calendar_years(curve, marks)
+        benchmarks.append({"key": key, "name": name, "curve": curve.round(4).tolist(),
+                           "stats": backtest.summarize(path_stats(curve, marks, spy, etf, risk_free, years, split)),
+                           "drawdown": backtest.drawdowns(curve).round(4).tolist(), "years": years_b[0].tolist()})
+    # Half the 75/25 mix and half an index fund, reset every month. Measures marked "_etf" are against that fund.
+    blends = {}
+    for symbol in BLEND_WITH:
+        fund = bench[symbol]
+        r = BLEND_SHARE * mix_r + (1 - BLEND_SHARE) * (fund[1:] / fund[:-1] - 1)
+        values = np.concatenate([np.ones((len(r), 1)), np.cumprod(1 + r, axis=1)], axis=1)
+        blends[symbol] = {
+            "symbol": symbol, "name": f"{BLEND_SHARE:.0%} 75/25 + {1 - BLEND_SHARE:.0%} {symbol}",
+            "stats": backtest.summarize(path_stats(values, marks, spy, fund, risk_free, years, split)),
+            "fan": np.percentile(values, [5, 50, 95], axis=0).round(4).tolist(),
+            "drawdown": np.median(backtest.drawdowns(values), axis=0).round(4).tolist(),
+            "mix_stats": backtest.summarize(path_stats(np.concatenate([np.ones((len(mix_r), 1)), np.cumprod(1 + mix_r, axis=1)], axis=1),
+                                                       marks, spy, fund, risk_free, years, split)),
+            "fund": {"curve": fund.round(4).tolist(), "drawdown": backtest.drawdowns(fund).round(4).tolist(),
+                     "stats": backtest.summarize(path_stats(fund, marks, spy, fund, risk_free, years, split))},
+        }
+    return {"sector": sector, "cap_symbol": cap_symbol, "mixes": rows, "blends": blends, "blend_share": BLEND_SHARE, "benchmarks": benchmarks, "year_labels": labels,
+            "split": str(SPLIT_DATE.date())}
+
+
 def trend(spread):
     """Change in the gap per decade of start dates, with errors that allow for the overlap."""
     years = np.asarray((spread.index - spread.index[0]).days / 365.25)
@@ -267,4 +370,5 @@ def build(returns, scored, prices, interval):
         "dates": [str(d.date()) for d in marks], "curves": curves, "rolling_quarters": ROLLING_QUARTERS,
         "focus": [{**focus(sector, returns, scored, curves, interval),
                    "versus": versus_benchmarks(sector, marks, growth, bench, risk_free)} for sector in FOCUS],
+        "mixes": mixes(MIX_SECTOR, marks, growth, bench, risk_free),
     }

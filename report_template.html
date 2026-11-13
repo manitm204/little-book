@@ -19,6 +19,7 @@
     --series-2: #eb6834;
     --series-2-soft: rgba(235, 104, 52, 0.22);
     --reference: #7a7974;
+    --series-3: #7b5cd6;
   }
   @media (prefers-color-scheme: dark) {
     :root:where(:not([data-theme="light"])) {
@@ -35,6 +36,7 @@
       --series-2: #d95926;
       --series-2-soft: rgba(217, 89, 38, 0.30);
       --reference: #8f8e86;
+    --series-3: #9a80ea;
     }
   }
   :root[data-theme="dark"] {
@@ -51,6 +53,7 @@
     --series-2: #d95926;
     --series-2-soft: rgba(217, 89, 38, 0.30);
     --reference: #8f8e86;
+    --series-3: #9a80ea;
   }
   * { box-sizing: border-box; }
   body {
@@ -364,6 +367,53 @@
     <div class="legend" id="ls-legend"></div>
     <div class="table-wrap" id="ls-table" style="margin-top:12px"></div>
   </section>
+
+
+  <section class="card">
+    <h2>How much to short? <span id="mix-title"></span> top 25% long, bottom 25% short, in different mixes</h2>
+    <div class="sub" id="mix-sub"></div>
+    <div class="verdict" id="mix-verdict"></div>
+    <div class="chart" id="mix-chart"></div>
+    <div class="legend" id="mix-legend"></div>
+    <h3>Every measure, side by side</h3>
+    <div class="sub" id="mix-table-sub"></div>
+    <div class="table-wrap" id="mix-table"></div>
+    <h3>Drops from the previous peak</h3>
+    <div class="sub">Median path for each mix. The S&amp;P 500 and the sector ETF are shown for comparison.</div>
+    <div class="chart" id="mix-drawdown"></div>
+    <div class="legend" id="mix-drawdown-legend"></div>
+    <h3>Each calendar year</h3>
+    <div class="sub">Median path for each mix. The first and last years are partial.</div>
+    <div class="table-wrap" id="mix-years"></div>
+  </section>
+
+
+  <section class="card">
+    <h2>Half 75/25, half S&amp;P 500, rebalanced monthly</h2>
+    <div class="sub" id="blend-SPY-sub"></div>
+    <div class="verdict" id="blend-SPY-verdict"></div>
+    <div class="chart" id="blend-SPY-chart"></div>
+    <div class="legend" id="blend-SPY-legend"></div>
+    <h3>Side by side</h3>
+    <div class="sub" id="blend-SPY-table-sub"></div>
+    <div class="table-wrap" id="blend-SPY-table"></div>
+    <h3>Drops from the previous peak</h3>
+    <div class="chart" id="blend-SPY-drawdown"></div>
+  </section>
+
+  <section class="card">
+    <h2>Half 75/25, half Nasdaq-100 (QQQ), rebalanced monthly</h2>
+    <div class="sub" id="blend-QQQ-sub"></div>
+    <div class="verdict" id="blend-QQQ-verdict"></div>
+    <div class="chart" id="blend-QQQ-chart"></div>
+    <div class="legend" id="blend-QQQ-legend"></div>
+    <h3>Side by side</h3>
+    <div class="sub" id="blend-QQQ-table-sub"></div>
+    <div class="table-wrap" id="blend-QQQ-table"></div>
+    <h3>Drops from the previous peak</h3>
+    <div class="chart" id="blend-QQQ-drawdown"></div>
+  </section>
+
 
   <section class="card">
     <h2>Score vs. return over the next year, stock by stock</h2>
@@ -1690,6 +1740,177 @@ function fillLongShort() {
   }).join("")}</tbody></table>`;
 }
 
+
+const mixColors = () => ({ long: css("--series-1"), m75: css("--series-3"), m50: css("--series-2"), ls: css("--reference"),
+  spy: css("--text-primary"), etf: css("--reference") });
+const mixDash = { ls: "5 4", etf: "2 3" };
+function mixSeries() {
+  const x = DATA.sectors.mixes;
+  return [...x.mixes.map(m => ({ key: m.key, name: m.name, values: m.fan[1], drawdown: m.drawdown })),
+          ...x.benchmarks.map(b => ({ key: b.key, name: b.name, values: b.curve, drawdown: b.drawdown }))];
+}
+function drawMixes() {
+  const colors = mixColors(), series = mixSeries();
+  drawGrowth("mix-chart", series.map(s => ({ values: s.values, color: colors[s.key], dash: mixDash[s.key],
+    width: ["long", "m75", "m50"].includes(s.key) ? 2.5 : 1.5, label: true })), [], {
+    height: 380, aria: "Growth of one dollar in each long-short mix, median paths, against SPY and the sector ETF",
+    tip: i => series.map(s => `<span>${s.name}: ${money(s.values[i])}</span>`).join("<br>"),
+  });
+  lineChart("mix-drawdown", series.map(s => ({ values: s.drawdown, color: colors[s.key], dash: mixDash[s.key],
+    width: ["long", "m75", "m50"].includes(s.key) ? 2 : 1.25 })), {
+    height: 260, ceiling: 0, format: v => (v * 100).toFixed(0) + "%", aria: "Drops from the previous peak for each mix",
+    tip: i => series.map(s => `<span>${s.name}: ${pct(s.drawdown[i])}</span>`).join("<br>"),
+  });
+}
+function fillMixes() {
+  const x = DATA.sectors.mixes, colors = mixColors(), splitYear = x.split.slice(0, 4);
+  const by = Object.fromEntries(x.mixes.map(m => [m.key, m]));
+  const spy = x.benchmarks[0];
+  document.getElementById("mix-title").textContent = x.sector + ":";
+  document.getElementById("mix-sub").textContent =
+    `Shares of the money: 100% long holds only the top 25% of ${x.sector} by score. 75/25 puts 75% in the top 25% and shorts the bottom 25% ` +
+    `with the other 25%; 50/50 splits it evenly. Weights are reset every month. Money not in the long side, and the cash from the short sale, ` +
+    `earns the T-bill rate. Borrowing and trading costs are left out. The earlier 100% long / 100% short version is the dashed grey line. ` +
+    `Same random-half paths as the sections above (${DATA.equity.paths.toLocaleString()} paths); lines are the median. Log scale.`;
+  const s = k => by[k].stats;
+  document.getElementById("mix-verdict").innerHTML =
+    `<strong>100% long: ${pct(s("long").cagr[0])} a year, Sharpe ${s("long").sharpe[0].toFixed(2)}, worst drop ${pct(s("long").max_drawdown[0], 0)}. ` +
+    `75/25: ${pct(s("m75").cagr[0])}, Sharpe ${s("m75").sharpe[0].toFixed(2)}, worst drop ${pct(s("m75").max_drawdown[0], 0)}. ` +
+    `50/50: ${pct(s("m50").cagr[0])}, Sharpe ${s("m50").sharpe[0].toFixed(2)}, worst drop ${pct(s("m50").max_drawdown[0], 0)}.</strong> ` +
+    `The S&P 500 made ${pct(spy.stats.cagr[0])} a year with a worst drop of ${pct(spy.stats.max_drawdown[0], 0)}. ` +
+    `Shorting more cuts beta from ${s("long").beta[0].toFixed(2)} to ${s("m75").beta[0].toFixed(2)} and ${s("m50").beta[0].toFixed(2)}, ` +
+    `and the correlation with SPY from ${s("long").correlation[0].toFixed(2)} to ${s("m50").correlation[0].toFixed(2)}.`;
+  document.getElementById("mix-legend").innerHTML = mixSeries().map(m =>
+    `<span><i style="border-color:${colors[m.key]};border-top-width:3px;${mixDash[m.key] ? `border-top-style:${m.key === "etf" ? "dotted" : "dashed"};` : ""}"></i>${m.name}</span>`).join("");
+  document.getElementById("mix-drawdown-legend").innerHTML = document.getElementById("mix-legend").innerHTML;
+  document.getElementById("mix-table-sub").textContent =
+    `Median across paths, with the range covering 90% of paths underneath. The best of the four mixes on each line is in bold. ` +
+    `Alpha is the yearly return above T-bills not explained by the S&P 500 (CAPM); "vs. ${x.cap_symbol}" measures the same against the sector ETF. ` +
+    `Its t-statistic uses Newey-West errors; above 2 is unlikely to be luck.`;
+
+  const f = { pct: v => pct(v), size: v => (v * 100).toFixed(1) + "%", num: v => v.toFixed(2), share: v => (v * 100).toFixed(0) + "%",
+    money: v => money(v), months: v => v.toFixed(0) };
+  const groups = [
+    ["Return", [
+      ["Yearly growth (CAGR)", "cagr", f.pct, 1], ["$1 grew to", "ending_value", f.money, 1],
+      ["Return above T-bills (yearly)", "excess_return", f.pct, 1],
+      [`CAGR before ${splitYear}`, "early", f.pct, 1], [`CAGR since ${splitYear}`, "late", f.pct, 1],
+      ["Best calendar year", "best_year", f.pct, 1], ["Worst calendar year", "worst_year", f.pct, 1],
+      ["Calendar years with a gain", "years_positive", f.share, 1], ["Calendar years beating SPY", "years_beating_spy", f.share, 1],
+      ["Months with a gain", "months_positive", f.share, 1]]],
+    ["Risk", [
+      ["Volatility (yearly)", "volatility", f.size, -1], ["Worst drop from a peak", "max_drawdown", f.pct, 1],
+      ["Longest time below a peak (months)", "underwater_months", f.months, -1],
+      ["Worst month", "worst_month", f.pct, 1], ["Best month", "best_month", f.pct, 1], ["Skew of monthly returns", "skew", f.num, 1]]],
+    ["Risk-adjusted", [
+      ["Sharpe ratio", "sharpe", f.num, 1], ["Sortino ratio", "sortino", f.num, 1], ["Calmar ratio (CAGR ÷ worst drop)", "calmar", f.num, 1],
+      ["Information ratio vs. SPY", "information_ratio", f.num, 1]]],
+    ["Against the S&P 500", [
+      ["Alpha (yearly)", "alpha", f.pct, 1], ["t-statistic of alpha", "alpha_t", f.num, 1],
+      ["Beta", "beta", f.num, 0], ["Beta in falling months", "downside_beta", f.num, 0],
+      ["Correlation", "correlation", f.num, 0], ["R²", "r_squared", f.num, 0],
+      ["Up-month capture", "up_capture", f.share, 0], ["Down-month capture", "down_capture", f.share, 0],
+      ["Tracking error", "tracking_error", f.size, 0], ["Months beating SPY", "months_beating", f.share, 1]]],
+    [`Against ${x.cap_symbol}`, [
+      ["Alpha (yearly)", "alpha_etf", f.pct, 1], ["Beta", "beta_etf", f.num, 0], ["Correlation", "correlation_etf", f.num, 0]]],
+  ];
+  const cols = [...x.mixes, ...x.benchmarks];
+  const head = `<tr><th></th>${cols.map(c => `<th><i style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${colors[c.key]};margin-right:6px"></i>${c.name}</th>`).join("")}</tr>`;
+  const body = groups.map(([title, rows]) => `<tr><td colspan="${cols.length + 1}" style="text-align:left;font-weight:600;color:var(--text-primary);padding-top:14px">${title}</td></tr>` +
+    rows.map(([label, key, format, better]) => {
+      const mixValues = x.mixes.slice(0, 3).map(m => m.stats[key]?.[0]);
+      const best = better ? (better > 0 ? Math.max(...mixValues) : Math.min(...mixValues)) : null;
+      return `<tr><td>${label}</td>${cols.map((c, i) => {
+        const v = c.stats[key];
+        if (!v) return "<td>—</td>";
+        const isMix = i < x.mixes.length;
+        return `<td class="${isMix && i < 3 && v[0] === best ? "best" : ""}">${format(v[0])}${isMix ? `<span class="range">${format(v[1])} to ${format(v[2])}</span>` : ""}</td>`;
+      }).join("")}</tr>`;
+    }).join("")).join("");
+  document.getElementById("mix-table").innerHTML = `<table class="stats-table"><thead>${head}</thead><tbody>${body}</tbody></table>`;
+
+  const yearHead = `<tr><th>Year</th>${cols.map(c => `<th>${c.name}</th>`).join("")}</tr>`;
+  const yearBody = x.year_labels.map((label, i) => {
+    const vals = cols.map(c => c.years[i]);
+    return `<tr><td>${label}</td>${vals.map(v => `<td style="color:${v < 0 ? "var(--series-2)" : "inherit"}">${pct(v)}</td>`).join("")}</tr>`;
+  }).join("");
+  document.getElementById("mix-years").innerHTML = `<table class="stats-table"><thead>${yearHead}</thead><tbody>${yearBody}</tbody></table>`;
+}
+
+
+const blendNames = { SPY: "S&P 500 (SPY)", QQQ: "Nasdaq-100 (QQQ)" };
+function blendSeries(symbol) {
+  const x = DATA.sectors.mixes, b = x.blends[symbol];
+  return [
+    { key: "m75", name: x.mixes.find(m => m.key === "m75").name, values: x.mixes.find(m => m.key === "m75").fan[1],
+      drawdown: x.mixes.find(m => m.key === "m75").drawdown, stats: b.mix_stats, color: css("--series-3"), range: true },
+    { key: "blend", name: b.name, values: b.fan[1], drawdown: b.drawdown, stats: b.stats, color: css("--series-1"), range: true },
+    { key: "fund", name: blendNames[symbol], values: b.fund.curve, drawdown: b.fund.drawdown, stats: b.fund.stats, color: css("--text-primary") },
+  ];
+}
+// Reference lines drawn on a blend's charts but left out of its table.
+function blendExtras(symbol) {
+  if (symbol === "SPY") return [];
+  const spy = DATA.sectors.mixes.benchmarks[0];
+  return [{ key: "spy", name: spy.name, values: spy.curve, drawdown: spy.drawdown, color: css("--text-primary"), dash: "5 4" }];
+}
+function drawBlend(symbol) {
+  const series = [...blendSeries(symbol), ...blendExtras(symbol)];
+  drawGrowth(`blend-${symbol}-chart`, series.map(s => ({ values: s.values, color: s.color, dash: s.dash, width: s.key === "blend" ? 2.75 : s.dash ? 1.5 : 1.75, label: true })), [], {
+    height: 360, aria: `Growth of one dollar: 75/25, the half-and-half blend with ${symbol}, and ${symbol}`,
+    tip: i => series.map(s => `<span>${s.name}: ${money(s.values[i])}</span>`).join("<br>"),
+  });
+  lineChart(`blend-${symbol}-drawdown`, series.map(s => ({ values: s.drawdown, color: s.color, dash: s.dash, width: s.key === "blend" ? 2 : 1.25 })), {
+    height: 240, ceiling: 0, format: v => (v * 100).toFixed(0) + "%", aria: "Drops from the previous peak",
+    tip: i => series.map(s => `<span>${s.name}: ${pct(s.drawdown[i])}</span>`).join("<br>"),
+  });
+}
+function fillBlend(symbol) {
+  const x = DATA.sectors.mixes, series = blendSeries(symbol), splitYear = x.split.slice(0, 4), id = k => document.getElementById(`blend-${symbol}-${k}`);
+  const [, blend, fund] = series.map(s => s.stats);
+  const isSpy = symbol === "SPY";
+  id("sub").textContent =
+    `${(x.blend_share * 100).toFixed(0)}% of the money in the ${x.sector} 75/25 long-short and ${(100 - x.blend_share * 100).toFixed(0)}% in ${symbol}, ` +
+    `reset to those shares at every month end. The 75/25 side uses the same random-half paths as above; lines are medians. ` +
+    `Borrowing and trading costs are left out. Log scale.`;
+  id("verdict").innerHTML =
+    `<strong>The blend made ${pct(blend.cagr[0])} a year with a Sharpe of ${blend.sharpe[0].toFixed(2)} and a worst drop of ${pct(blend.max_drawdown[0], 0)}, ` +
+    `against ${pct(fund.cagr[0])}, ${fund.sharpe[0].toFixed(2)} and ${pct(fund.max_drawdown[0], 0)} for ${symbol}.</strong> ` +
+    (isSpy ? `Its beta is ${blend.beta[0].toFixed(2)}, with ${pct(blend.alpha[0])} a year of alpha (t-statistic ${blend.alpha_t[0].toFixed(1)}).`
+           : `Against QQQ its beta is ${blend.beta_etf[0].toFixed(2)} and correlation ${blend.correlation_etf[0].toFixed(2)}; ` +
+             `against the S&P 500, beta ${blend.beta[0].toFixed(2)} and alpha ${pct(blend.alpha[0])} a year (t-statistic ${blend.alpha_t[0].toFixed(1)}).`);
+  id("legend").innerHTML = [...series, ...blendExtras(symbol)].map(s =>
+    `<span><i style="border-color:${s.color};border-top-width:3px;${s.dash ? "border-top-style:dashed;" : ""}"></i>${s.name}</span>`).join("");
+  id("table-sub").textContent = `Median across paths, with the range covering 90% of paths underneath. ${symbol} is a single line, so it has no range.` +
+    (isSpy ? "" : " Alpha, beta and correlation are shown against both the S&P 500 and QQQ.");
+  const f = { pct: v => pct(v), size: v => (v * 100).toFixed(1) + "%", num: v => v.toFixed(2), share: v => (v * 100).toFixed(0) + "%",
+    money: v => money(v), months: v => v.toFixed(0) };
+  const rows = [
+    ["Yearly growth (CAGR)", "cagr", f.pct, 1], ["$1 grew to", "ending_value", f.money, 1],
+    [`CAGR before ${splitYear}`, "early", f.pct, 1], [`CAGR since ${splitYear}`, "late", f.pct, 1],
+    ["Volatility (yearly)", "volatility", f.size, -1], ["Sharpe ratio", "sharpe", f.num, 1], ["Sortino ratio", "sortino", f.num, 1],
+    ["Worst drop from a peak", "max_drawdown", f.pct, 1], ["Calmar ratio (CAGR ÷ worst drop)", "calmar", f.num, 1],
+    ["Longest time below a peak (months)", "underwater_months", f.months, -1],
+    ["Worst calendar year", "worst_year", f.pct, 1], ["Worst month", "worst_month", f.pct, 1],
+    ["Beta to SPY", "beta", f.num, 0], ["Correlation to SPY", "correlation", f.num, 0],
+    ["Alpha vs. SPY (yearly)", "alpha", f.pct, 1], ["t-statistic of alpha vs. SPY", "alpha_t", f.num, 1],
+    ...(isSpy ? [] : [["Beta to QQQ", "beta_etf", f.num, 0], ["Correlation to QQQ", "correlation_etf", f.num, 0], ["Alpha vs. QQQ (yearly)", "alpha_etf", f.pct, 1]]),
+    ["Down-month capture (SPY)", "down_capture", f.share, -1], ["Calendar years beating SPY", "years_beating_spy", f.share, 1],
+  ];
+  const head = `<tr><th></th>${series.map(s => `<th><i style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${s.color};margin-right:6px"></i>${s.name}</th>`).join("")}</tr>`;
+  const body = rows.map(([label, key, format, better]) => {
+    const values = series.map(s => s.stats[key]?.[0]).filter(v => v !== undefined);
+    const best = better ? (better > 0 ? Math.max(...values) : Math.min(...values)) : null;
+    return `<tr><td>${label}</td>${series.map(s => {
+      const v = s.stats[key];
+      if (!v) return "<td>—</td>";
+      return `<td class="${v[0] === best ? "best" : ""}">${format(v[0])}${s.range ? `<span class="range">${format(v[1])} to ${format(v[2])}</span>` : ""}</td>`;
+    }).join("")}</tr>`;
+  }).join("");
+  id("table").innerHTML = `<table class="stats-table"><thead>${head}</thead><tbody>${body}</tbody></table>`;
+}
+
+
 function fillEquity() {
   const eq = DATA.equity, top = eq.simulated.top, bottom = eq.simulated.bottom, all = eq.full.all;
   const picks = Math.round(eq.group_size_median * eq.pick_fraction);
@@ -1916,6 +2137,9 @@ function render() {
   drawFocus();
   drawVersus();
   drawLongShort();
+  drawMixes();
+  drawBlend("SPY");
+  drawBlend("QQQ");
 }
 
 fillText();
@@ -1925,6 +2149,9 @@ fillSectors();
 fillFocus();
 fillVersus();
 fillLongShort();
+fillMixes();
+fillBlend("SPY");
+fillBlend("QQQ");
 drawTable("year-table", "year");
 drawTable("quarter-table", "quarter");
 render();
